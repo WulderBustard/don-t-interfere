@@ -1,0 +1,442 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+
+// ======= App (root) =======
+export default function App() {
+  // текстовые и голосовые каналы
+  const [textChannels, setTextChannels] = useState(["general", "random"]);
+  const [voiceChannels, setVoiceChannels] = useState([
+    { name: "Общий", members: [] },
+  ]);
+
+  // сообщения по текстовым каналам
+  const [messages, setMessages] = useState({ general: [], random: [] });
+
+  // текущий канал и тип
+  const [current, setCurrent] = useState({ name: "general", type: "text" });
+
+  // статус пользователя
+  const [selfStatus, setSelfStatus] = useState("online"); // online | idle | offline
+
+  // панель участников справа
+  const [membersOpen, setMembersOpen] = useState(true);
+
+  // модалки
+  const [addModal, setAddModal] = useState({ open: false, type: "text" });
+  const [deleteModal, setDeleteModal] = useState({ open: false, name: "", type: "text" });
+
+  // mic icon state (bottom controls)
+  const [micMuted, setMicMuted] = useState(false);
+
+  // удобный мемоизированный список всех каналов для быстрого поиска
+  const allChannels = useMemo(() => ({
+    text: textChannels,
+    voice: voiceChannels.map(v => v.name)
+  }), [textChannels, voiceChannels]);
+
+  // переключение канала
+  function switchChannel(name, type) {
+    setCurrent({ name, type });
+  }
+
+  // отправка сообщения в текущий текстовый канал
+  function sendMessage(text) {
+    if (!text || current.type !== "text") return;
+    const payload = { user: "Вы", text, time: timeHHMM() };
+    setMessages(prev => ({
+      ...prev,
+      [current.name]: [...(prev[current.name] || []), payload],
+    }));
+  }
+
+  // добавить канал
+  function addChannel({ name, type }) {
+    const trimmed = (name || "").trim();
+    if (!trimmed) return;
+    if (type === "text") {
+      if (textChannels.includes(trimmed)) return;
+      setTextChannels(prev => [...prev, trimmed]);
+      setMessages(prev => ({ ...prev, [trimmed]: [] }));
+      setCurrent({ name: trimmed, type: "text" });
+    } else {
+      if (voiceChannels.some(v => v.name === trimmed)) return;
+      setVoiceChannels(prev => [...prev, { name: trimmed, members: [] }]);
+      setCurrent({ name: trimmed, type: "voice" });
+    }
+    setAddModal({ open: false, type });
+  }
+
+  // удалить канал
+  function deleteChannel({ name, type }) {
+    if (type === "text") {
+      setTextChannels(prev => prev.filter(ch => ch !== name));
+      setMessages(prev => {
+        const copy = { ...prev };
+        delete copy[name];
+        return copy;
+      });
+    } else {
+      setVoiceChannels(prev => prev.filter(v => v.name !== name));
+    }
+
+    // если удалили активный канал — переключаемся на первый доступный
+    setCurrent(prev => {
+      if (prev.name === name && prev.type === type) {
+        if (textChannels.filter(ch => ch !== name).length > 0) {
+          return { name: textChannels.find(ch => ch !== name) || "general", type: "text" };
+        }
+        if (voiceChannels.filter(v => v.name !== name).length > 0) {
+          const first = voiceChannels.find(v => v.name !== name);
+          return { name: first ? first.name : "", type: "voice" };
+        }
+        return { name: "", type: "text" };
+      }
+      return prev;
+    });
+    setDeleteModal({ open: false, name: "", type: "text" });
+  }
+
+  return (
+    <div className={"app-grid" + (membersOpen ? " members-open" : "")}> 
+      <ChannelList
+        textChannels={textChannels}
+        voiceChannels={voiceChannels}
+        current={current}
+        onSwitch={switchChannel}
+        onOpenAdd={(type) => setAddModal({ open: true, type })}
+        onOpenDelete={(name, type) => setDeleteModal({ open: true, name, type })}
+        selfStatus={selfStatus}
+        onChangeStatus={setSelfStatus}
+        micMuted={micMuted}
+        onToggleMic={() => setMicMuted(v => !v)}
+      />
+
+      <ChatPanel
+        current={current}
+        messages={messages[current.name] || []}
+        onSend={sendMessage}
+        onToggleMembers={() => setMembersOpen(v => !v)}
+      />
+
+      {membersOpen && (
+        <MembersPanel
+          current={current}
+          voiceChannels={voiceChannels}
+          selfStatus={selfStatus}
+        />
+      )}
+
+      {addModal.open && (
+        <AddChannelModal
+          type={addModal.type}
+          onClose={() => setAddModal({ open: false, type: "text" })}
+          onSave={addChannel}
+        />
+      )}
+
+      {deleteModal.open && (
+        <DeleteChannelModal
+          name={deleteModal.name}
+          type={deleteModal.type}
+          onClose={() => setDeleteModal({ open: false, name: "", type: "text" })}
+          onConfirm={() => deleteChannel(deleteModal)}
+        />
+      )}
+
+      {/* Встраиваем CSS прямо тут для простоты предпросмотра */}
+      <style>{BASE_CSS}</style>
+    </div>
+  );
+}
+
+// ======= ChannelList =======
+function ChannelList({
+  textChannels,
+  voiceChannels,
+  current,
+  onSwitch,
+  onOpenAdd,
+  onOpenDelete,
+  selfStatus,
+  onChangeStatus,
+  micMuted,
+  onToggleMic,
+}) {
+  const [statusOpen, setStatusOpen] = useState(false);
+  const statusRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (!statusRef.current) return;
+      if (!statusRef.current.contains(e.target)) setStatusOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <aside className="channel-list">
+      <div className="channel-category">
+        <span>ТЕКСТОВЫЕ КАНАЛЫ</span>
+        <button onClick={() => onOpenAdd("text")} title="Добавить канал">+</button>
+      </div>
+
+      {textChannels.map((name) => (
+        <div
+          key={name}
+          className={
+            "channel-item d-flex justify-content-between align-items-center" +
+            (current.type === "text" && current.name === name ? " active" : "")
+          }
+        >
+          <span style={{ flex: 1 }} onClick={() => onSwitch(name, "text")}>
+            # {name}
+          </span>
+          <button className="delete-btn" onClick={() => onOpenDelete(name, "text")}>
+            🗑️
+          </button>
+        </div>
+      ))}
+
+      <div className="voice-channels">
+        <div className="channel-category mt-4">
+          <span>ГОЛОСОВЫЕ КАНАЛЫ</span>
+          <button onClick={() => onOpenAdd("voice")} title="Добавить голосовой канал">+</button>
+        </div>
+
+        {voiceChannels.map((vc) => (
+          <div
+            key={vc.name}
+            className={
+              "voice-channel channel-item d-flex justify-content-between align-items-center" +
+              (current.type === "voice" && current.name === vc.name ? " active" : "")
+            }
+          >
+            <span style={{ flex: 1 }} onClick={() => onSwitch(vc.name, "voice")}>
+              🔊 {vc.name}
+            </span>
+            <button className="delete-btn" onClick={() => onOpenDelete(vc.name, "voice")}>
+              🗑️
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="user-controls" ref={statusRef}>
+        <div className="avatar" onClick={() => setStatusOpen(v => !v)}>
+          <div className={`status-dot ${statusClass(selfStatus)}`}></div>
+        </div>
+        <span className="username">Вы</span>
+        <div className="actions">
+          <button className={micMuted ? "mic muted" : "mic"} onClick={onToggleMic}>
+            {micMuted ? "🔇" : "🎙️"}
+          </button>
+          <button className="btn-headphones">🎧</button>
+          <button className="btn-settings">⚙️</button>
+        </div>
+
+        {statusOpen && (
+          <div className="status-menu">
+            {[
+              { key: "online", label: "🟢 Онлайн" },
+              { key: "idle", label: "🟡 Нет на месте" },
+              { key: "offline", label: "⚫ Невидимый" },
+            ].map(s => (
+              <button key={s.key} onClick={() => { onChangeStatus(s.key); setStatusOpen(false); }}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+// ======= ChatPanel =======
+function ChatPanel({ current, messages, onSend, onToggleMembers }) {
+  const [text, setText] = useState("");
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, [messages, current]);
+
+  function submit() {
+    const t = text.trim();
+    if (!t) return;
+    onSend(t);
+    setText("");
+  }
+
+  function handleKey(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
+  }
+
+  return (
+    <section className="chat-panel d-flex flex-column">
+      <header className="chat-header p-2 d-flex justify-content-between align-items-center">
+        <span id="chat-title">{current.type === "text" ? "#" : "🔊"} {current.name}</span>
+        <button id="toggle-members" className="btn btn-sm btn-secondary" onClick={onToggleMembers}>⋮</button>
+      </header>
+
+      <div className="chat-messages" id="chat-messages" ref={ref}>
+        {current.type !== "text" ? (
+          <p className="text-muted">Это голосовой канал. Здесь нет сообщений.</p>
+        ) : (
+          messages.map((m, idx) => (
+            <div key={idx} className="message">
+              <span className="username">{m.user}</span>
+              <span className="timestamp"> {m.time}</span>
+              <div className="text">{m.text}</div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <footer className="message-input d-flex p-2">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKey}
+          rows={1}
+          placeholder="Напишите сообщение..."
+          className="form-control"
+        />
+        <button id="send-btn" className="btn btn-primary" onClick={submit}>Отправить</button>
+      </footer>
+    </section>
+  );
+}
+
+// ======= MembersPanel =======
+function MembersPanel({ current, voiceChannels, selfStatus }) {
+  const members = useMemo(() => {
+    if (current.type !== "voice") return [];
+    const vc = voiceChannels.find(v => v.name === current.name);
+    return vc ? vc.members : [];
+  }, [current, voiceChannels]);
+
+  return (
+    <aside className="members-panel">
+      <h6>Участники</h6>
+      <div id="members-list">
+        {current.type === "text" && <p className="text-muted">Нет участников</p>}
+        {current.type === "voice" && (
+          <>
+            {members.map((m, i) => (
+              <div className="member" key={i}>
+                <div className="avatar">
+                  <div className={`status-dot ${statusClass(m.status)}`}></div>
+                </div>
+                <span style={{ marginRight: 8 }}>{m.name}</span>
+                <span className={m.micMuted ? "mic muted" : "mic active"}>{m.micMuted ? "🔇" : "🎙️"}</span>
+              </div>
+            ))}
+            <div className="member">
+              <div className="avatar">
+                <div className={`status-dot ${statusClass(selfStatus)}`}></div>
+              </div>
+              <span style={{ marginRight: 8 }}>Вы</span>
+              <span className="mic active">🎙️</span>
+            </div>
+          </>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+// ======= AddChannelModal =======
+function AddChannelModal({ type, onClose, onSave }) {
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState(type);
+
+  function save() {
+    onSave({ name, type: kind });
+    setName("");
+  }
+
+  return (
+    <Modal onClose={onClose} title="Создать канал">
+      <div className="mb-3">
+        <label className="form-label">Название канала</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="form-control"
+          placeholder="Например: memes"
+        />
+      </div>
+      <div className="mb-3">
+        <label className="form-label">Тип</label>
+        <select value={kind} onChange={(e) => setKind(e.target.value)} className="form-select">
+          <option value="text">Текстовый</option>
+          <option value="voice">Голосовой</option>
+        </select>
+      </div>
+      <div className="modal-actions">
+        <button className="btn btn-secondary" onClick={onClose}>Отмена</button>
+        <button className="btn btn-primary" onClick={save}>Создать</button>
+      </div>
+    </Modal>
+  );
+}
+
+// ======= DeleteChannelModal =======
+function DeleteChannelModal({ name, type, onClose, onConfirm }) {
+  return (
+    <Modal onClose={onClose} title="Удалить канал">
+      <p>Вы уверены, что хотите удалить канал <b>{name}</b>?</p>
+      <div className="modal-actions">
+        <button className="btn btn-secondary" onClick={onClose}>Отмена</button>
+        <button className="btn btn-danger" onClick={onConfirm}>Удалить</button>
+      </div>
+    </Modal>
+  );
+}
+
+// ======= Generic Modal =======
+function Modal({ title, children, onClose }) {
+  useEffect(() => {
+    const handler = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", handler);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handler);
+      document.body.style.overflow = "auto";
+    };
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h5 className="modal-title">{title}</h5>
+          <button className="btn-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// ======= helpers =======
+function statusClass(status) {
+  if (status === "online") return "status-online";
+  if (status === "idle") return "status-idle";
+  return "status-offline";
+}
+
+function timeHHMM() {
+  const d = new Date();
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+// ======= Styles (копия твоего CSS + чуть-чуть к модалкам и кнопкам) =======
+const BASE_CSS = `
+
+`;
