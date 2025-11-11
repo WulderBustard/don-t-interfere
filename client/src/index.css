@@ -13,12 +13,10 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
 body, html { 
   margin: 0;  
   color: white; 
 }
-
 a {
   font-weight: 500;
   color: #646cff;
@@ -27,35 +25,19 @@ a {
 a:hover {
   color: #535bf2;
 }
-
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
-
 button {
   font-family: inherit;
   background-color: #1a1a1a;
   cursor: pointer;
   transition: border-color 0.25s;
 }
-
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
 }
 .app-grid {  
  height: 100vh; 
@@ -129,47 +111,39 @@ button:focus-visible {
     position: relative;
     z-index: 0;
     border-radius: 10px;
+      &:active { color: #000 }
+      &:active:after { background: transparent; }
+      &:hover:before{ opacity: 1; }
+      &:after{
+        z-index: -1;
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: #40444b;
+        left: 0;
+        top: 0;
+        border-radius: 10px;
+      }
+      &:before {
+        content: '';
+        background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
+        position: absolute;
+        top: -2px;
+        left:-2px;
+        background-size: 400%;
+        z-index: -1;
+        filter: blur(5px);
+        width: calc(100% + 4px);
+        height: calc(100% + 4px);
+        animation: glowing 20s linear infinite;
+        opacity: 0;
+        transition: opacity .3s ease-in-out;
+        border-radius: 10px;
+      }
+
 
 }
-.channel-category button:before {
-  content: '';
-    background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
-    position: absolute;
-    top: -2px;
-    left:-2px;
-    background-size: 400%;
-    z-index: -1;
-    filter: blur(5px);
-    width: calc(100% + 4px);
-    height: calc(100% + 4px);
-    animation: glowing 20s linear infinite;
-    opacity: 0;
-    transition: opacity .3s ease-in-out;
-    border-radius: 10px;
-
-}
-.channel-category button:active {
-  color: #000
-}
-.channel-category button:active:after {
-  background: transparent;
-}
-
-.channel-category button:hover:before{
-  opacity: 1;
-}
-.channel-category button:after{
-    z-index: -1;
-    content: '';
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background: #40444b;
-    left: 0;
-    top: 0;
-    border-radius: 10px;
-}
-
 @keyframes glowing {
     0% { background-position: 0 0; }
     50% { background-position: 400% 0; }
@@ -201,14 +175,19 @@ button:focus-visible {
   border: none;
   color: #aaa;
   cursor: pointer;
+  outline: none;           /* убирает рамку при фокусе */
+
+    &:hover {
+      box-shadow: 0 0.5em 0.1em -0.4em var(--hover);
+      transform: translateY(-0.05em);
+      outline: none;           /* убирает рамку при фокусе */
+    }
 }
 
-.delete-btn:hover {
-  box-shadow: 0 0.5em 0.1em -0.4em var(--hover);
-  transform: translateY(-0.05em);
-}
+
 
 /* ======= ПАНЕЛЬ ПОЛЬЗОВАТЕЛЯ ======= */
+
 .user-controls {
   background: #232428;
   padding: 10px;
@@ -240,10 +219,6 @@ button:focus-visible {
   right: 2px;
 }
 
-.status-online { background: #3ba55d; }
-.status-idle { background: #faa61a; }
-.status-offline { background: #888; }
-
 .username {
   flex: 1;
   margin-left: 10px;
@@ -256,17 +231,19 @@ button:focus-visible {
   font-size: 16px;
   cursor: pointer;
   margin-left: 6px;
-}
+  outline: none;
 
-.actions button:hover {
-  color: #fff;
+    &:hover { color: #fff; }
 }
 
 .mic.muted {
   color: #f04747;
+  outline: none;
 }
 
 .btn-settings{
+  user-select: none;       /* запрещает выделение текста */
+  outline: none;           /* убирает рамку при фокусе */
   border: none;
   cursor: pointer;
   transition: transform 0.6s ease;
@@ -274,6 +251,7 @@ button:focus-visible {
 }
 .btn-settings:hover{
   animation: spin 1s ease-out forwards;
+  outline: none;
 }
 /* когда убираем курсор — поворот обратно */
 .btn-settings:not(:hover) {
@@ -309,11 +287,10 @@ button:focus-visible {
   padding: 4px 8px;
   text-align: left;
   cursor: pointer;
+
+    &:hover { background: rgba(255, 255, 255, 0.1); }
 }
 
-.status-menu button:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
 
 /* ======= ЧАТ ======= */
 .chat-panel {
@@ -332,9 +309,6 @@ button:focus-visible {
   font-weight: bold;
 }
 
-
-
-
 .chat-header  button {
     width: 20px;
     height: 25px;
@@ -347,8 +321,25 @@ button:focus-visible {
     z-index: 0;
     border-radius: 10px;
 
-}
-.chat-header  button:before {
+  &:active { color: #2f3136 }
+
+  &:active:after { background: transparent; }
+
+  &:hover:before{ opacity: 1; }
+
+  &:after{
+    z-index: -1;
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: #40444b;
+    left: 0;
+    top: 0;
+    border-radius: 10px;
+  }
+
+  &:before {
   content: '';
     background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
     position: absolute;
@@ -363,30 +354,8 @@ button:focus-visible {
     opacity: 0;
     transition: opacity .3s ease-in-out;
     border-radius: 10px;
-
+  }
 }
-.chat-header  button:active {
-  color: #2f3136
-}
-.chat-header  button:active:after {
-  background: transparent;
-}
-
-.chat-header  button:hover:before{
-  opacity: 1;
-}
-.chat-header  button:after{
-    z-index: -1;
-    content: '';
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background: #40444b;
-    left: 0;
-    top: 0;
-    border-radius: 10px;
-}
-
 
 .chat-messages {
   flex: 1;
@@ -443,13 +412,13 @@ button:focus-visible {
   margin-left: 8px;
   padding: 8px 12px;
   border-radius: 4px;
-  
-}
-
-.message-input button:hover {
+  &:hover {
   background: #2b2d31;
   transition: background 0.15s;
 }
+  
+}
+
 
 /* ======= ПАНЕЛЬ УЧАСТНИКОВ ======= */
 .members-panel {
@@ -473,11 +442,13 @@ button:focus-visible {
   justify-content: space-between;
   padding: 6px 4px;
   border-radius: 4px;
+
+    &:hover {
+  background: rgba(255, 255, 255, 0.05);
+  }
+
 }
 
-.member:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
 
 /* ======= МОДАЛЬНОЕ ОКНО ======= */
 .modal-backdrop {
@@ -495,12 +466,12 @@ button:focus-visible {
 
 .modal-card {
   background: #2f3136;
-  border-radius: 8px;
-  padding: 16px;
-  width: 320px;
+  border-radius: 11px;
+  padding: 11px;
+  width: 360px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+
 }
 
 .modal-header {
@@ -512,21 +483,18 @@ button:focus-visible {
 .modal-header button {
   background: none;
   border: none;
+
   color: #ccc;
   font-size: 20px;
   cursor: pointer;
 }
 
-.modal-body input,
-.modal-body select {
-  width: 100%;
-  padding: 8px;
+.modal-body input, select {
   background: #40444b;
   border: none;
   border-radius: 4px;
   color: #fff;
 }
-
 .btn-danger {
   background: #f04747;
   border: none;
@@ -534,11 +502,107 @@ button:focus-visible {
   border-radius: 4px;
   color: #fff;
   cursor: pointer;
+  &:hover {
+  background: #c03535;
+  }
 }
 
-.btn-danger:hover {
-  background: #c03535;
+.btn-add{
+  width: 100px;
+    height: 25px;
+    border: none;
+    outline: none;
+    color: #fff;
+    background: #111;
+    cursor: pointer;
+    position: relative;
+    z-index: 0;
+    border-radius: 10px;
+      &:active { color: #000 }
+      &:active:after { background: transparent; }
+      &:hover:before{ opacity: 1; }
+      &:after{
+        z-index: -1;
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: #40444b;
+        left: 0;
+        top: 0;
+        border-radius: 10px;
+      }
+      &:before {
+        content: '';
+        background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
+        position: absolute;
+        top: -2px;
+        left:-2px;
+        background-size: 400%;
+        z-index: -1;
+        filter: blur(5px);
+        width: calc(100% + 4px);
+        height: calc(100% + 4px);
+        animation: glowing 20s linear infinite;
+        opacity: 0;
+        transition: opacity .3s ease-in-out;
+        border-radius: 10px;
+      }
+
+}  
+
+.mini-voice-panel {
+  background: #2f3136;
+  border-radius: 8px;
+  padding: 8px;
+  margin: 10px;
+  font-size: 14px;
 }
+
+.mini-voice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+}
+
+.leave-btn {
+  background: #ed4245;
+  border: none;
+  color: white;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.leave-btn:hover {
+  background: #c0392b;
+}
+
+.mini-voice-members {
+  margin-top: 8px;
+}
+
+.mini-member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.mini-member img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.empty-voice {
+  opacity: 0.6;
+  font-size: 13px;
+  margin-top: 4px;
+  text-align: center;
+}
+
 
 /* ======= СКРОЛЛ ======= */
 ::-webkit-scrollbar {

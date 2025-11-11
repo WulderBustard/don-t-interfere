@@ -1,40 +1,42 @@
-// server/routes/auth.js
 const express = require("express");
+const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
 require("dotenv").config();
 
-const router = express.Router();
-const SECRET = process.env.JWT_SECRET || "supersecret";
+const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
-// Регистрация
-router.post("/register", async (req, res) => {
+// === Регистрация ===
+router.post("/register", (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: "Missing fields" });
+  if (!username || !password)
+    return res.status(400).json({ error: "Введите логин и пароль" });
 
-  try {
-    const hashed = await bcrypt.hash(password, 10);
-    const user = db.createUser(username.trim(), hashed);
-    res.status(201).json({ id: user.id, username: user.username });
-  } catch (err) {
-    if (err.code === "SQLITE_CONSTRAINT_UNIQUE") return res.status(409).json({ error: "User exists" });
-    console.error(err);
-    res.status(500).json({ error: "DB error" });
-  }
+  const existing = db.getUser(username);
+  if (existing) return res.status(400).json({ error: "Пользователь уже существует" });
+
+  const passwordHash = bcrypt.hashSync(password, 10);
+  const newUser = db.createUser(username, passwordHash);
+
+  const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "24h" });
+  res.json({ user: newUser, token });
 });
 
-// Вход
-router.post("/login", async (req, res) => {
+// === Авторизация ===
+router.post("/login", (req, res) => {
   const { username, password } = req.body;
-  const user = db.getUserByUsername(username);
-  if (!user) return res.status(401).json({ error: "Invalid credentials" });
+  if (!username || !password)
+    return res.status(400).json({ error: "Введите логин и пароль" });
 
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) return res.status(401).json({ error: "Invalid credentials" });
+  const user = db.getUser(username);
+  if (!user) return res.status(400).json({ error: "Пользователь не найден" });
 
-  const token = jwt.sign({ id: user.id, username: user.username }, SECRET, { expiresIn: "1h" });
-  res.json({ token, username: user.username });
+  const valid = bcrypt.compareSync(password, user.password);
+  if (!valid) return res.status(401).json({ error: "Неверный пароль" });
+
+  const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "24h" });
+  res.json({ user: { id: user.id, username: user.username }, token });
 });
 
 module.exports = router;

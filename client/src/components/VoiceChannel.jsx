@@ -1,75 +1,61 @@
-// client/src/components/VoiceChannel.jsx
+// client/src/components/VoiceChannelAuto.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
-/*
-  NOTE:
-  - SIGNALING_SERVER должен указывать на тот httpServer, где запущен Socket.IO (в нашем примере тот же server/index.js)
-  - в .env: VITE_VOICE_URL=http://77.82.17.9:3001  (или другой хост/порт)
-*/
-const SIGNALING_SERVER = import.meta.env.VITE_VOICE_URL || "http://77.82.17.9:3001";
+const SIGNALING_SERVER = import.meta.env.VITE_VOICE_URL || "https://10.21.3.106:3001";
 const ICE_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
-export default function VoiceChannel({ channelId, displayName = "You", onMembers }) {
+socketRef.current.on("play-connect-sound", () => {
+  const audio = new Audio("../assets/sounds/join.wav"); // путь относительно public/
+  audio.play().catch(() => {});
+});
+
+
+export default function VoiceChannelAuto({ channelId, displayName = "You", onMembers }) {
   const socketRef = useRef(null);
   const localStreamRef = useRef(null);
-  const pcsRef = useRef({}); // { remoteId: RTCPeerConnection }
+  const pcsRef = useRef({});
   const [joined, setJoined] = useState(false);
   const [muted, setMuted] = useState(false);
-  const [members, setMembers] = useState([]); // [{id, name}]
+  const [members, setMembers] = useState([]);
 
-  // helper to create peer connection and attach local stream
   function createPeer(remoteId) {
     const pc = new RTCPeerConnection(ICE_CONFIG);
-
-    // add local tracks
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((t) => pc.addTrack(t, localStreamRef.current));
+      localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current));
     }
-
-    // remote track -> attach audio element
     pc.ontrack = (evt) => {
-      // ensure we create only one audio element per remoteId
       let audio = document.getElementById(`audio-${remoteId}`);
       if (!audio) {
         audio = document.createElement("audio");
         audio.id = `audio-${remoteId}`;
         audio.autoplay = true;
-        audio.style.display = "none"; // we don't need to show it
+        audio.style.display = "none";
         document.body.appendChild(audio);
       }
       audio.srcObject = evt.streams[0];
     };
-
-    // ICE candidates: send to remote
     pc.onicecandidate = (evt) => {
       if (evt.candidate) {
         socketRef.current.emit("signal:ice", { to: remoteId, candidate: evt.candidate });
       }
     };
-
     return pc;
   }
 
-  // toggle mute
   function toggleMute() {
     const on = !muted;
     setMuted(on);
     if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach(t => { t.enabled = !on; });
+      localStreamRef.current.getAudioTracks().forEach(t => t.enabled = !on);
     }
   }
 
-  // leave channel
   function leave() {
     if (!socketRef.current) return;
     socketRef.current.emit("leave-channel", { channelId });
-    // close peer connections
-    Object.values(pcsRef.current).forEach(pc => {
-      try { pc.close(); } catch (e) {}
-    });
+    Object.values(pcsRef.current).forEach(pc => { try { pc.close(); } catch {} });
     pcsRef.current = {};
-    // stop local stream
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
@@ -77,40 +63,45 @@ export default function VoiceChannel({ channelId, displayName = "You", onMembers
     setJoined(false);
     setMembers([]);
     if (onMembers) onMembers(channelId, []);
-    // also remove audio elements
     document.querySelectorAll("[id^='audio-']").forEach(a => a.remove());
-    // disconnect socket
     socketRef.current.disconnect();
     socketRef.current = null;
   }
 
+  // функция проигрывания звука
+  function playConnectSound() {
+    const audio = new Audio(CONNECT_SOUND);
+    audio.volume = 0.5; // уровень громкости
+    audio.play().catch(() => {}); // игнорируем ошибки автоплей
+  }
+
   useEffect(() => {
-    let mounted = true;
     if (!channelId) return;
 
     async function start() {
-      // request microphone access
       try {
         const s = await navigator.mediaDevices.getUserMedia({ audio: true });
         localStreamRef.current = s;
-        // obey current mute state
         s.getAudioTracks().forEach(t => t.enabled = !muted);
+
+        const localAudio = document.createElement("audio");
+        localAudio.autoplay = true;
+        localAudio.muted = true;
+        localAudio.srcObject = s;
+        localAudio.style.display = "none";
+        document.body.appendChild(localAudio);
       } catch (err) {
-        console.error("Cannot access microphone:", err);
-        // still try to join signaling so members list can work; but no local audio
+        console.warn("Микрофон недоступен:", err);
       }
 
       const socket = io(SIGNALING_SERVER, { transports: ["websocket"] });
       socketRef.current = socket;
 
       socket.on("connect", () => {
-        // join voice room
-        socket.emit("join-channel", { channelId, name: displayName || "User" });
+        socket.emit("join-channel", { channelId, name: displayName });
       });
 
-      // server sends list of existing peers (ids) for the newcomer
       socket.on("existing-peers", async ({ peers }) => {
-        // create offers to each existing peer
         for (const remoteId of peers) {
           const pc = createPeer(remoteId);
           pcsRef.current[remoteId] = pc;
@@ -124,13 +115,16 @@ export default function VoiceChannel({ channelId, displayName = "You", onMembers
         }
       });
 
-      // when new peers join, server will send members-update (we also listen to it separately)
       socket.on("members-update", ({ members: srvMembers }) => {
         setMembers(srvMembers);
         if (onMembers) onMembers(channelId, srvMembers);
+
+        // если мы только что подключились, воспроизвести звук
+        if (!joined) {
+          playConnectSound();
+        }
       });
 
-      // handle incoming offer
       socket.on("signal:offer", async ({ from, sdp }) => {
         try {
           let pc = pcsRef.current[from];
@@ -147,52 +141,36 @@ export default function VoiceChannel({ channelId, displayName = "You", onMembers
         }
       });
 
-      // handle incoming answer
       socket.on("signal:answer", async ({ from, sdp }) => {
         try {
           const pc = pcsRef.current[from];
-          if (!pc) {
-            console.warn("answer for unknown pc", from);
-            return;
-          }
-          await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+          if (pc) await pc.setRemoteDescription(new RTCSessionDescription(sdp));
         } catch (err) {
           console.error("handle answer error", err);
         }
       });
 
-      // handle incoming ICE
       socket.on("signal:ice", async ({ from, candidate }) => {
         try {
           const pc = pcsRef.current[from];
-          if (pc && candidate) {
-            await pc.addIceCandidate(candidate);
-          }
+          if (pc && candidate) await pc.addIceCandidate(candidate);
         } catch (err) {
           console.error("addIceCandidate error", err);
         }
       });
 
-      // cleanup on disconnect
       socket.on("disconnect", () => {
-        // keep local stream running if we want to continue — but remove peers
-        Object.values(pcsRef.current).forEach(pc => { try { pc.close(); } catch(e) {} });
+        Object.values(pcsRef.current).forEach(pc => { try { pc.close(); } catch {} });
         pcsRef.current = {};
       });
 
       setJoined(true);
+      playConnectSound(); // проигрываем при первой успешной установке соединения
     }
 
     start();
+  }, [channelId]);
 
-    return () => {
-      mounted = false;
-      // we intentionally do NOT auto-leave on unmount so session can continue when switching to text
-      // If you want to leave when component unmounts, call leave() here.
-    };
-  }, [channelId]); // start when channelId given
-
-  // Expose leave/mute via simple UI
   return (
     <div style={{ padding: 8 }}>
       <div style={{ fontSize: 13, color: "#cfcfcf" }}>
