@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useCallback } from "react";
 import "./index.css";
 
 import { useChannels } from "./hooks/useChannels";
@@ -12,9 +12,8 @@ import MembersPanel from "./components/MembersPanel";
 import ChannelModal from "./components/ChannelModal";
 import VoiceChannelAuto from "./components/VoiceChannelAuto";
 
-
 export default function App() {
-  const { user } = useContext(AuthContext); // текущий пользователь
+  const { user } = useContext(AuthContext);
 
   const {
     channels,
@@ -26,21 +25,21 @@ export default function App() {
     deleteChannel
   } = useChannels();
 
+  // Локальные части UI разнесены по отдельным стейтам
+  const [isMembersOpen, setMembersOpen] = useState(false);
+  const [isMicMuted, setMicMuted] = useState(false);
+  const [selfStatus, setSelfStatus] = useState("online");
+  const [modal, setModal] = useState({ open: false });
+
   const [voiceChannel, setVoiceChannel] = useState(null);
   const [voiceMembers, setVoiceMembers] = useState([]);
 
-  const [ui, setUi] = useState({
-    selfStatus: "online",
-    micMuted: false,
-    membersOpen: false,
-    modal: { open: false }
-  });
+  const toggleMembers = useCallback(() => setMembersOpen(prev => !prev), []);
+  const toggleMic = useCallback(() => setMicMuted(prev => !prev), []);
+  const closeModal = useCallback(() => setModal({ open: false }), []);
 
-  const toggle = key => setUi(prev => ({ ...prev, [key]: !prev[key] }));
-  const closeModal = () => setUi(prev => ({ ...prev, modal: { open: false } }));
-
-  // Отправка сообщения
-  async function sendMessage(text) {
+  // Отправка сообщения (оптимизировано useCallback)
+  const sendMessage = useCallback(async (text) => {
     const trimmed = text.trim();
     if (!trimmed || !current || current.type !== "text") return;
     if (!user) return alert("Вы не авторизованы");
@@ -49,6 +48,7 @@ export default function App() {
 
     try {
       const saved = await sendMessageApi(current.id, payload);
+
       setMessagesByChannel(prev => ({
         ...prev,
         [current.id]: [...(prev[current.id] || []), saved]
@@ -56,61 +56,66 @@ export default function App() {
     } catch {
       alert("Не удалось отправить сообщение");
     }
-  }
+  }, [current, user, setMessagesByChannel]);
+
+  // Подтверждение модалки
+  const handleConfirmModal = useCallback((data) => {
+    if (modal.mode === "add") addChannel(data.name, data.type);
+    if (modal.mode === "delete") deleteChannel(data.id, data.type);
+    closeModal();
+  }, [modal, addChannel, deleteChannel, closeModal]);
 
   return (
-    <div className={`app-grid${ui.membersOpen ? " members-open" : ""}`}>
+    <div className={`app-grid${isMembersOpen ? " members-open" : ""}`}>
       <ChannelList
         channels={channels}
         current={current}
         onSwitch={setCurrent}
-        onOpenModal={modal => setUi(prev => ({ ...prev, modal }))}
-        selfStatus={ui.selfStatus}
-        onChangeStatus={status => setUi(prev => ({ ...prev, selfStatus: status }))}
-        micMuted={ui.micMuted}
-        onToggleMic={() => toggle("micMuted")}
+        onOpenModal={setModal}
+        selfStatus={selfStatus}
+        onChangeStatus={setSelfStatus}
+        micMuted={isMicMuted}
+        onToggleMic={toggleMic}
       />
 
-      {current && (
+      {current ? (
         <ChatPanel
           current={current}
           messages={messagesByChannel[current.id] || []}
           onSend={sendMessage}
-          onToggleMembers={() => toggle("membersOpen")}
+          onToggleMembers={toggleMembers}
         />
+      ) : (
+        <div className="empty-panel">Выберите канал</div>
       )}
 
-      {ui.membersOpen && current && (
+      {isMembersOpen && current && (
         <MembersPanel
           current={current}
           voiceChannels={channels.voice}
-          selfStatus={ui.selfStatus}
-          selfName={user?.username} // передаём имя текущего пользователя
+          selfStatus={selfStatus}
+          selfName={user?.username}
         />
       )}
 
-      {ui.modal.open && (
+      {modal.open && (
         <ChannelModal
-          {...ui.modal}
+          {...modal}
           onClose={closeModal}
-          onConfirm={data => {
-            if (ui.modal.mode === "add") addChannel(data.name, data.type);
-            else if (ui.modal.mode === "delete") deleteChannel(data.id, data.type);
-            closeModal();
+          onConfirm={handleConfirmModal}
+        />
+      )}
+
+      {current?.type === "voice" && (
+        <VoiceChannelAuto
+          channelId={current.id}
+          displayName={user?.username || "Аноним"}
+          onMembers={(id, members) => {
+            setVoiceChannel(channels.voice[id]);
+            setVoiceMembers(members);
           }}
         />
       )}
-      {current?.type === "voice" && (
-    <VoiceChannelAuto
-      channelId={current.id}
-      displayName={user?.username || "Аноним"}
-      onMembers={(id, members) => {
-        setVoiceChannel(channels.voice[id]);
-        setVoiceMembers(members);
-      }}
-    />
-  )}
-
     </div>
   );
 }
