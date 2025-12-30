@@ -1,12 +1,12 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useEffect, useState } from "react";
+import { API_BASE } from "./api";
 
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // флаг загрузки
+  const [loading, setLoading] = useState(true);
 
-  // при монтировании читаем localStorage
   useEffect(() => {
     const token = localStorage.getItem("token");
     const username = localStorage.getItem("username");
@@ -15,22 +15,22 @@ export function AuthProvider({ children }) {
       setUser({ username });
     }
 
-    setLoading(false); // проверка токена завершена
+    setLoading(false);
   }, []);
 
   async function login(username, password) {
-    username = username.trim();
+    const trimmed = username.trim();
 
-    if (!username || !password) {
+    if (!trimmed || !password) {
       alert("Логин и пароль не могут быть пустыми");
       return;
     }
 
     try {
-      const res = await fetch("https://10.21.3.106:3001/auth/login", {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username: trimmed, password }),
       });
 
       const data = await res.json();
@@ -41,8 +41,8 @@ export function AuthProvider({ children }) {
       }
 
       localStorage.setItem("token", data.token);
-      localStorage.setItem("username", username);
-      setUser({ username });
+      localStorage.setItem("username", trimmed);
+      setUser({ username: trimmed });
     } catch (err) {
       console.error(err);
       alert("Ошибка сети");
@@ -50,16 +50,22 @@ export function AuthProvider({ children }) {
   }
 
   async function register(username, password) {
+    const trimmed = username.trim();
+
+    if (!trimmed || !password) {
+      alert("Логин и пароль не могут быть пустыми");
+      return;
+    }
+
     try {
-      const res = await fetch("https://10.21.3.106:3001/auth/register", {
+      const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: trimmed, password }),
       });
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || "Ошибка регистрации");
-
     } catch (err) {
       console.error(err);
       alert(err.message || "Ошибка сети");
@@ -72,11 +78,7 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = { user, login, register, logout, loading };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-

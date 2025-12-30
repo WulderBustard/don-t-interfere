@@ -1,4 +1,4 @@
-const API = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
+export const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/$/, "");
 
 // Получаем токен из localStorage
 function authHeaders() {
@@ -8,13 +8,13 @@ function authHeaders() {
 
 // ===== Каналы =====
 export async function fetchChannels() {
-  const res = await fetch(`${API}/channels`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/channels`, { headers: authHeaders() });
   if (!res.ok) throw new Error("Failed to fetch channels");
   return res.json();
 }
 
 export async function createChannel(name, type) {
-  const res = await fetch(`${API}/channels`, {
+  const res = await fetch(`${API_BASE}/channels`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ name, type })
@@ -28,7 +28,7 @@ export async function createChannel(name, type) {
 }
 
 export async function deleteChannelApi(id) {
-  const res = await fetch(`${API}/channels/${id}`, {
+  const res = await fetch(`${API_BASE}/channels/${id}`, {
     method: "DELETE",
     headers: authHeaders()
   });
@@ -42,13 +42,13 @@ export async function deleteChannelApi(id) {
 
 // ===== Сообщения =====
 export async function fetchMessages() {
-  const res = await fetch(`${API}/messages`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/messages`, { headers: authHeaders() });
   if (!res.ok) throw new Error("Failed to fetch messages");
   return res.json();
 }
 
 export async function sendMessageApi(channelId, message) {
-  const res = await fetch(`${API}/messages/${channelId}`, {
+  const res = await fetch(`${API_BASE}/messages/${channelId}`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(message),
