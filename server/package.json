@@ -13,6 +13,7 @@
     "dotenv": "^16.x",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "mediasoup": "^3.19.12",
     "socket.io": "^4.8.1",
     "sqlite3": "^5.1.7"
   },

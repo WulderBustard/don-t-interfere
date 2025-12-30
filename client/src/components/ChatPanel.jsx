@@ -12,33 +12,74 @@ function MessageItem({ user, time, text }) {
 export default function ChatPanel({ current, messages, onSend, onToggleMembers }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [showScrollDown, setShowScrollDown] = useState(false);
+
   const ref = useRef(null);
   const inputRef = useRef(null);
 
   const isTextChannel = current.type === "text";
 
+  // Автофокус при входе в текстовый канал
+  useEffect(() => {
+    if (isTextChannel) inputRef.current?.focus();
+  }, [current]);
+
+  // Автопрокрутка вниз при появлении новых сообщений
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
-    if (nearBottom) el.scrollTop = el.scrollHeight;
+
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
   }, [messages]);
 
+  // Автопрокрутка при заходе в канал
   useEffect(() => {
-    if (isTextChannel) {
-      inputRef.current?.focus(); // <<< фокус при открытии канала
-    }
+    const el = ref.current;
+    if (!el) return;
+
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
   }, [current]);
 
-  // <<< вот тут обновляем submit() по новому варианту
+  // Следим, внизу ли пользователь
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    function handleScroll() {
+      const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setShowScrollDown(distance > 150);
+    }
+
+    el.addEventListener("scroll", handleScroll);
+    handleScroll();
+
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  function scrollToBottom() {
+    const el = ref.current;
+    if (!el) return;
+
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior: "smooth"
+    });
+  }
+
   async function submit(e) {
-    e?.preventDefault(); // <<< предотвращаем дефолтное поведение
+    e?.preventDefault();
     if (!text.trim() || loading) return;
+
     setLoading(true);
     try {
       await onSend(text);
       setText("");
-      requestAnimationFrame(() => inputRef.current?.focus()); // <<< возвращаем фокус обратно
+      requestAnimationFrame(() => inputRef.current?.focus());
     } finally {
       setLoading(false);
     }
@@ -47,7 +88,7 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
   function handleKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      submit(e); // <<< передаем event, чтобы preventDefault сработал
+      submit(e);
     }
   }
 
@@ -80,13 +121,23 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
             disabled={loading}
           />
           <button
-            type="button" // <<< обязательно, иначе браузер "съедает" фокус
+            type="button"
             onClick={submit}
             disabled={loading || !text.trim()}
           >
             {loading ? "..." : "Отправить"}
           </button>
         </footer>
+      )}
+
+      {showScrollDown && (
+        <button
+          className="scroll-down-btn"
+          onClick={scrollToBottom}
+          title="Прокрутить вниз"
+        >
+          ↓
+        </button>
       )}
     </section>
   );
