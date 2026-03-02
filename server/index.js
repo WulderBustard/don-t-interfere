@@ -1,12 +1,15 @@
 const express = require("express");
 const cors = require("cors");
-const http = require("http");
+const fs = require("fs");
+const https = require("https");
 const { Server } = require("socket.io");
 
 // Роутеры API
 const channelsRouter = require("./routes/channels");
 const messagesRouter = require("./routes/messages");
-const voiceModule = require("./routes/voice"); // Socket.IO модуль
+const voiceModule = require("./routes/voice");
+const authRouter = require("./routes/auth");
+const authMiddleware = require("./middleware/authMiddleware");
 
 require("dotenv").config();
 
@@ -18,19 +21,29 @@ app.use(cors());
 app.use(express.json());
 
 // API роуты
-app.use("/channels", channelsRouter);
-app.use("/messages", messagesRouter);
+app.use("/auth", authRouter);
+app.use("/channels", authMiddleware, channelsRouter);
+app.use("/messages", authMiddleware, messagesRouter);
 app.get("/", (req, res) => res.send("OK"));
 
-// Создаем HTTP-сервер для Socket.IO
-const server = http.createServer(app);
+// Чтение сертификатов
+const options = {
+  key: fs.readFileSync("key.pem"),
+  cert: fs.readFileSync("cert.pem")
+};
+
+// HTTPS-сервер
+const server = https.createServer(options, app);
+
+// Socket.IO
 const io = new Server(server, {
-  cors: { origin: "*" } // если фронтенд на другом домене
+  cors: { origin: "*" }
 });
 
 // Подключаем голосовой модуль
 voiceModule(io);
 
+// Запуск
 server.listen(PORT, () => {
-  console.log(`Server running on http://0.0.0.0:${PORT}`);
+  console.log(`HTTPS сервер запущен на https://10.21.3.106:${PORT}`);
 });
