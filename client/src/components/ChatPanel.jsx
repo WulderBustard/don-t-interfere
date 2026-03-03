@@ -96,7 +96,7 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
     <section className="chat-panel">
       <header className="chat-header">
         <span>{isTextChannel ? "#" : "🔊"} {current.name}</span>
-        <button onClick={onToggleMembers} title="Участники канала">⋮</button>
+        <button onClick={onToggleMembers} title="Участники канала" className="members-panel-btn">⋮</button>
       </header>
 
       <div className="chat-messages" ref={ref}>
@@ -107,7 +107,19 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
         ) : (
           messages.map((m, i) => <MessageItem key={m.id ?? i} {...m} />)
         )}
+
+               {showScrollDown && (
+        <button
+          className="scroll-down-btn"
+          onClick={scrollToBottom}
+          title="Прокрутить вниз"
+        >
+          ↓
+        </button>
+      )}
+
       </div>
+
 
       {isTextChannel && (
         <footer className="message-input">
@@ -130,15 +142,7 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
         </footer>
       )}
 
-      {showScrollDown && (
-        <button
-          className="scroll-down-btn"
-          onClick={scrollToBottom}
-          title="Прокрутить вниз"
-        >
-          ↓
-        </button>
-      )}
+
     </section>
   );
 }
