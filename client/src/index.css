@@ -329,19 +329,24 @@ button:focus-visible {
 
 /* ======= ЧАТ ======= */
 .scroll-down-btn {
-  position: fixed;
-  left: 10px;
-  cursor: pointer;
-  width: 36px;
-  height: 36px;
+  position: absolute;
+  right: 16px;
+  bottom: 72px; /* выше поля ввода */
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   border: none;
-  background: #333;
+  background: #40444b;
   color: #fff;
   font-size: 22px;
   cursor: pointer;
-  opacity: 0.8;
-  transition: opacity 0.6s, transform 0.5s;
+  opacity: 0.9;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .scroll-down-btn:hover {
@@ -355,21 +360,8 @@ button:focus-visible {
   flex-direction: column;
   background: #313338;
   border-radius: 10px;
-}
-
-.message div {
-  color: #888;
-
-}
-
-.message b {
-  color: #fff;
-}
-
-.timestamp {
-  font-size: 0.8em;
-  color: #888;
-  margin-left: 4px;
+  padding: 10px 14px;
+  width: 95%;
 }
 
 .chat-messages {
@@ -379,14 +371,57 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  position: relative;
 }
+
+.message.other {
+  align-self: flex-start;
+  background: #313338;
+}
+
+.message.own {
+  align-self: flex-end;
+  background: #586;
+}
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.message-text {
+  white-space: pre-wrap;
+}
+
+.message.other .message-text {
+  color: #d7d9dc;
+}
+
+.message.own b,
+.message.own .timestamp,
+.message.own .message-text {
+  color: #fff;
+}
+
+.message.other b {
+  color: #fff;
+}
+
+.timestamp {
+  font-size: 0.8em;
+  color: #888;
+  margin-left: 4px;
+}
+
 
 /*=========Задний фон чата==========*/
 .chat-panel {
-  display: flex;
+   display: flex;
   flex-direction: column;
   background: #1B1C1E;
   overflow: hidden;
+  position: relative;
 }
 
 .chat-header {

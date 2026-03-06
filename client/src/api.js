@@ -65,3 +65,9 @@ export async function sendMessageApi(channelId, message) {
 
   return data;
 }
+export async function fetchUsers() {
+  const res = await fetch(`${API_BASE}/users`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Failed to fetch users");
+  return res.json();
+}
+

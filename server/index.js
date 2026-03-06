@@ -6,6 +6,7 @@ const { Server } = require("socket.io");
 
 const channelsRouter = require("./routes/channels");
 const createMessagesRouter = require("./routes/messages");
+const usersRouter = require("./routes/users");
 const voiceModule = require("./routes/voice");
 const authRouter = require("./routes/auth");
 const authMiddleware = require("./middleware/authMiddleware");
@@ -20,6 +21,7 @@ app.use(express.json());
 
 app.use("/auth", authRouter);
 app.use("/channels", authMiddleware, channelsRouter);
+app.use("/users", authMiddleware, usersRouter);
 app.get("/", (req, res) => res.send("OK"));
 
 const options = {
@@ -34,8 +36,6 @@ const io = new Server(server, {
 });
 
 voiceModule(io);
-
-// messages router теперь получает io
 app.use("/messages", authMiddleware, createMessagesRouter(io));
 
 server.listen(PORT, () => {

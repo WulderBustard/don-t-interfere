@@ -1,10 +1,15 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useContext } from "react";
+import { AuthContext } from "../AuthContext";
 
-function MessageItem({ user, time, text }) {
+
+function MessageItem({ user, time, text, isOwn }) {
   return (
-    <div className="message">
-      <b>{user}</b> <span className="timestamp">{time}</span>
-      <div>{text}</div>
+    <div className={`message ${isOwn ? "own" : "other"}`}>
+      <div className="message-meta">
+        <b>{user}</b>
+        <span className="timestamp">{time}</span>
+      </div>
+      <div className="message-text">{text}</div>
     </div>
   );
 }
@@ -12,20 +17,21 @@ function MessageItem({ user, time, text }) {
 export default function ChatPanel({ current, messages, onSend, onToggleMembers }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [showScrollDown, setShowScrollDown] = useState(false);
+
+  const { user } = useContext(AuthContext);
 
   const ref = useRef(null);
   const inputRef = useRef(null);
 
   const isTextChannel = current.type === "text";
 
-  // Автофокус при входе в текстовый канал
   useEffect(() => {
-    if (isTextChannel) inputRef.current?.focus();
-  }, [current]);
+    if (isTextChannel) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [current, isTextChannel]);
 
-  // Автопрокрутка вниз при появлении новых сообщений
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -35,7 +41,6 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
     });
   }, [messages]);
 
-  // Автопрокрутка при заходе в канал
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -45,7 +50,6 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
     });
   }, [current]);
 
-  // Следим, внизу ли пользователь
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -67,36 +71,50 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
 
     el.scrollTo({
       top: el.scrollHeight,
-      behavior: "smooth"
+      behavior: "smooth",
     });
   }
 
-  async function submit(e) {
-    e?.preventDefault();
-    if (!text.trim() || loading) return;
+  async function submit() {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
 
     setLoading(true);
+
     try {
-      await onSend(text);
+      await onSend(trimmed);
       setText("");
-      requestAnimationFrame(() => inputRef.current?.focus());
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
     } finally {
       setLoading(false);
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
     }
   }
 
   function handleKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      submit(e);
+      submit();
     }
   }
 
   return (
     <section className="chat-panel">
       <header className="chat-header">
-        <span>{isTextChannel ? "#" : "🔊"} {current.name}</span>
-        <button onClick={onToggleMembers} title="Участники канала" className="members-panel-btn">⋮</button>
+        <span>
+          {isTextChannel ? "#" : "🔊"} {current.name}
+        </span>
+        <button
+          onClick={onToggleMembers}
+          title="Участники канала"
+          className="members-panel-btn"
+        >
+          ⋮
+        </button>
       </header>
 
       <div className="chat-messages" ref={ref}>
@@ -105,20 +123,27 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
         ) : messages.length === 0 ? (
           <p className="text-muted">Сообщений пока нет.</p>
         ) : (
-          messages.map((m, i) => <MessageItem key={m.id ?? i} {...m} />)
+          messages.map((m, i) => (
+            <MessageItem
+              key={m.id ?? i}
+              user={m.user}
+              time={m.time}
+              text={m.text}
+              isOwn={m.user === user?.username}
+            />
+          ))
         )}
-
-               {showScrollDown && (
-        <button
-          className="scroll-down-btn"
-          onClick={scrollToBottom}
-          title="Прокрутить вниз"
-        >
-          ↓
-        </button>
-      )}
-
       </div>
+
+        {showScrollDown && (
+          <button
+            className="scroll-down-btn"
+            onClick={scrollToBottom}
+            title="Прокрутить вниз"
+          >
+            ↓
+          </button>
+        )}
 
 
       {isTextChannel && (
@@ -141,8 +166,6 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
           </button>
         </footer>
       )}
-
-
     </section>
   );
 }

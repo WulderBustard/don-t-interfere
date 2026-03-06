@@ -5,36 +5,34 @@ require("dotenv").config();
 
 const DB_FILE = process.env.DB_FILE || path.join(__dirname, "db", "data.sqlite");
 
-// ensure folder exists
 const dir = path.dirname(DB_FILE);
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
 const db = new Database(DB_FILE);
 
-// Создаём таблицы, если их нет
 db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-  CREATE TABLE IF NOT EXISTS channels (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    type TEXT NOT NULL CHECK(type IN ('text','voice')),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+CREATE TABLE IF NOT EXISTS channels (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  type TEXT NOT NULL CHECK(type IN ('text','voice')),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-  CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    channel_id INTEGER NOT NULL,
-    user TEXT,
-    text TEXT,
-    time TEXT,
-    FOREIGN KEY(channel_id) REFERENCES channels(id) ON DELETE CASCADE
-  );
+CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  channel_id INTEGER NOT NULL,
+  user TEXT,
+  text TEXT,
+  time TEXT,
+  FOREIGN KEY(channel_id) REFERENCES channels(id) ON DELETE CASCADE
+);
 `);
 
 module.exports = {
@@ -66,15 +64,19 @@ module.exports = {
     return { id: info.lastInsertRowid, channel_id: channelId, user, text, time };
   },
 
-  // === Users ===
   getUser(username) {
     const stmt = db.prepare("SELECT * FROM users WHERE username = ?");
     return stmt.get(username);
+  },
+
+  getAllUsers() {
+    const stmt = db.prepare("SELECT id, username, created_at FROM users ORDER BY username ASC");
+    return stmt.all();
   },
 
   createUser(username, passwordHash) {
     const stmt = db.prepare("INSERT INTO users (username, password) VALUES (?, ?)");
     const info = stmt.run(username, passwordHash);
     return { id: info.lastInsertRowid, username };
-  }
+  },
 };
