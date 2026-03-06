@@ -4,7 +4,6 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
 
   font-synthesis: none;
@@ -13,9 +12,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-body, html { 
-  margin: 0;  
-  color: white; 
+body,
+html {
+  color: white;
 }
 
 a {
@@ -84,17 +83,17 @@ button:focus-visible {
 }
 
 /*=====Профиль пользователя=====*/
-.mini-profile{
+.mini-profile {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 1.3em;
   color: #ccc;
-  margin-bottom: 4px; 
+  margin-bottom: 4px;
 }
-.mini-profile button{
 
-}
+.mini-profile button {}
+
 /* ======= Текст категории каналов и знак + ======= */
 .channel-category {
   display: flex;
@@ -118,9 +117,18 @@ button:focus-visible {
   border-radius: 10px;
 }
 
-.channel-category button:active { color: #000 }
-.channel-category button:active:after { background: transparent; }
-.channel-category button:hover:before { opacity: 1; }
+.channel-category button:active {
+  color: #000
+}
+
+.channel-category button:active:after {
+  background: transparent;
+}
+
+.channel-category button:hover:before {
+  opacity: 1;
+}
+
 .channel-category button:after {
   z-index: -1;
   content: '';
@@ -132,6 +140,7 @@ button:focus-visible {
   top: 0;
   border-radius: 10px;
 }
+
 .channel-category button:before {
   content: '';
   background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
@@ -150,9 +159,17 @@ button:focus-visible {
 }
 
 @keyframes glowing {
-  0% { background-position: 0 0; }
-  50% { background-position: 400% 0; }
-  100% { background-position: 0 0; }
+  0% {
+    background-position: 0 0;
+  }
+
+  50% {
+    background-position: 400% 0;
+  }
+
+  100% {
+    background-position: 0 0;
+  }
 }
 
 /* ======= ЭЛЕМЕНТ КАНАЛА ======= */
@@ -235,7 +252,9 @@ button:focus-visible {
   outline: none;
 }
 
-.actions button:hover { color: #fff; }
+.actions button:hover {
+  color: #fff;
+}
 
 .mic.muted {
   color: #f04747;
@@ -262,13 +281,23 @@ button:focus-visible {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(180deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(180deg);
+  }
 }
 
 @keyframes spin-back {
-  from { transform: rotate(180deg); }
-  to { transform: rotate(0deg); }
+  from {
+    transform: rotate(180deg);
+  }
+
+  to {
+    transform: rotate(0deg);
+  }
 }
 
 /* ======= Меню статуса ======= */
@@ -294,7 +323,9 @@ button:focus-visible {
   cursor: pointer;
 }
 
-.status-menu button:hover { background: rgba(255, 255, 255, 0.1); }
+.status-menu button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
 
 /* ======= ЧАТ ======= */
 .scroll-down-btn {
@@ -319,67 +350,71 @@ button:focus-visible {
 }
 
 /*====сообщения====*/
-.message { 
-  display: flex; 
-  flex-direction: column; 
+.message {
+  display: flex;
+  flex-direction: column;
   background: #313338;
   border-radius: 10px;
 }
 
-.message div{
+.message div {
   color: #888;
 
 }
-.message b { 
-  color: #fff; 
+
+.message b {
+  color: #fff;
 }
-.timestamp { 
-  font-size: 0.8em; 
-  color: #888; 
-  margin-left: 4px; 
+
+.timestamp {
+  font-size: 0.8em;
+  color: #888;
+  margin-left: 4px;
 }
-.chat-messages { 
-  flex: 1; 
-  overflow-y: auto; 
-  padding: 10px 16px; 
-  display: flex; 
-  flex-direction: column; 
-  gap: 6px; 
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 /*=========Задний фон чата==========*/
 .chat-panel {
- display: flex; 
- flex-direction: column; 
- background: #1B1C1E; 
- overflow: hidden; 
-}
-.chat-header { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  padding: 10px 16px; 
-  border-bottom: 1px solid #2f3136; 
-  font-weight: bold; 
+  display: flex;
+  flex-direction: column;
+  background: #1B1C1E;
+  overflow: hidden;
 }
 
-
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #2f3136;
+  font-weight: bold;
+}
 
 
 /* =========Панель участников========== */
-.members-panel { 
-  background: #2b2d31; 
-  border-left: 1px solid #2f3136; 
-  padding: 10px; 
-  display: flex; 
-  flex-direction: column; 
-  overflow-y: auto; 
+.members-panel {
+  background: #2b2d31;
+  border-left: 1px solid #2f3136;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
-.members-panel h6 { 
-  argin-bottom: 6px; 
-  color: #ccc; 
-  font-size: 0.9em; 
+
+.members-panel h6 {
+  margin-bottom: 6px;
+  color: #ccc;
+  font-size: 0.9em;
 }
+
 .members-panel-btn {
   width: 20px;
   height: 25px;
@@ -392,9 +427,19 @@ button:focus-visible {
   z-index: 0;
   border-radius: 10px;
 }
-.members-panel-btn:active { color: #000 }
-.members-panel-btn:active:after { background: transparent; }
-.members-panel-btn:hover:before { opacity: 1; }
+
+.members-panel-btn:active {
+  color: #000
+}
+
+.members-panel-btn:active:after {
+  background: transparent;
+}
+
+.members-panel-btn:hover:before {
+  opacity: 1;
+}
+
 .members-panel-btn:after {
   z-index: -1;
   content: '';
@@ -406,6 +451,7 @@ button:focus-visible {
   top: 0;
   border-radius: 10px;
 }
+
 .members-panel-btn:before {
   content: '';
   background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
@@ -422,38 +468,196 @@ button:focus-visible {
   transition: opacity .3s ease-in-out;
   border-radius: 10px;
 }
-.member { 
-  display: flex; 
-  align-items: center; 
-  justify-content: space-between; 
-  padding: 6px 4px; 
-  border-radius: 4px; 
+
+.member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px;
+  border-radius: 4px;
 }
 
+/*================Модальное окно=================*/
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal-card {
+  background: #2f3136;
+  border-radius: 15px;
+  padding: 9px;
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header button,
+h5 {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 10px;
+}
+
+.modal-header button:hover {
+  color: #fff;
+}
+
+
+.modal-body input {
+  width: 100%;
+  padding: 15px;
+  margin: 5px 0 12px 0;
+  display: inline-block;
+  border: none;
+  background: #40444b;
+  border-radius: 15px;
+}
+
+.modal-body input:focus {
+  background-color: #ddd;
+  outline: none;
+}
+
+.modal-body button {
+  padding: 10px 20px;
+  margin: 1px 0;
+  border: none;
+  cursor: pointer;
+  opacity: 0.9;
+  color: #ccc;
+  background: #111;
+  border-radius: 15px;
+}
+
+.btn-add:hover {
+  color: #fff;
+}
+
+.btn-cancel:hover {
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #f04747;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+
+/*===*/
 
 
 /* ======= Остальные стили chat-panel, , модальные окна и скролл ======= */
 
-.text-muted { color: #aaa; font-style: italic; }
-.message-input { display: flex; padding: 5px; border-top: 1px solid #2f3136; background: #383a40; }
-.message-input textarea { flex: 1; resize: none; border: none; border-radius: 4px; padding: 8px; background: #40444b; color: #fff; outline: none; height: 47px; }
-.message-input button { background: #40444b; border: none; margin-left: 8px; padding: 8px 12px; border-radius: 4px; }
-.modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 100; }
-.modal-card { background: #2f3136; border-radius: 11px; padding: 11px; width: 360px; display: flex; flex-direction: column; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; }
-.modal-header button { background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer; }
-.modal-body input, select { background: #40444b; border: none; border-radius: 4px; color: #fff; }
-.btn-danger { background: #f04747; border: none; padding: 8px 12px; border-radius: 4px; color: #fff; cursor: pointer; }
-.btn-add { width: 100px; height: 25px; border: none; outline: none; color: #fff; background: #111; cursor: pointer; position: relative; z-index: 0; border-radius: 10px; }
-.mini-voice-panel { background: #2f3136; border-radius: 8px; padding: 8px; margin: 10px; font-size: 14px; }
-.mini-voice-header { display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
-.leave-btn { background: #ed4245; border: none; color: white; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
-.leave-btn:hover { background: #c0392b; }
-.mini-voice-members { margin-top: 8px; }
-.mini-member { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-.mini-member img { width: 24px; height: 24px; border-radius: 50%; }
-.empty-voice { opacity: 0.6; font-size: 13px; margin-top: 4px; text-align: center; }
+.text-muted {
+  color: #aaa;
+  font-style: italic;
+}
+
+.message-input {
+  display: flex;
+  padding: 5px;
+  border-top: 1px solid #2f3136;
+  background: #383a40;
+}
+
+.message-input textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  background: #40444b;
+  color: #fff;
+  outline: none;
+  height: 47px;
+}
+
+.message-input button {
+  background: #40444b;
+  border: none;
+  margin-left: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.mini-voice-panel {
+  background: #2f3136;
+  border-radius: 8px;
+  padding: 8px;
+  margin: 10px;
+  font-size: 14px;
+}
+
+.mini-voice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+}
+
+.leave-btn {
+  background: #ed4245;
+  border: none;
+  color: white;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.leave-btn:hover {
+  background: #c0392b;
+}
+
+.mini-voice-members {
+  margin-top: 8px;
+}
+
+.mini-member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.mini-member img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.empty-voice {
+  opacity: 0.6;
+  font-size: 13px;
+  margin-top: 4px;
+  text-align: center;
+}
 
 /* ======= СКРОЛЛ ======= */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-thumb { background-color: #202225; border-radius: 4px; }
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #202225;
+  border-radius: 4px;
+}

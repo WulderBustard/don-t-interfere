@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
 // URL для сигналинга и базовая WebRTC конфигурация
-const SIGNALING_SERVER = import.meta.env.VITE_VOICE_URL || "https://10.21.3.106:3001";
+const SIGNALING_SERVER = import.meta.env.VITE_VOICE_URL || "https://localhost:3001";
 const ICE_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
 export default function VoiceChannelAuto({ channelId, displayName = "You", onMembers }) {
