@@ -60,7 +60,7 @@ router.delete("/:id", (req, res) => {
   if (ok) return res.json({ success: true });
 
   // Если канал с таким id не найден, возвращаем 404
-  return res.status(404).json({ error: "not found" });
+  return res.status(404).json({ error: "Такого канала не существует" });
 });
 
 // Экспортируем роутер, чтобы подключить его в index.js
