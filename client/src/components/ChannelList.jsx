@@ -11,8 +11,12 @@ const ChannelList = memo(function ChannelList({
   onChangeStatus,
   micMuted,
   onToggleMic,
+  onLeaveVoice,
+  onUserUpdated,
+  onVoiceMembers,
+  voiceMembersByChannel = {},
+  users = [],
 }) {
-  // Мемоизация списков каналов
   const textChannels = useMemo(
     () => Object.values(channels.text || {}),
     [channels.text]
@@ -22,7 +26,6 @@ const ChannelList = memo(function ChannelList({
     [channels.voice]
   );
 
-  // Конфигурация для генерации блоков
   const channelGroups = useMemo(
     () => [
       { title: "ТЕКСТОВЫЕ КАНАЛЫ", type: "text", list: textChannels },
@@ -31,8 +34,7 @@ const ChannelList = memo(function ChannelList({
     [textChannels, voiceChannels]
   );
 
-  const isEmpty =
-    textChannels.length === 0 && voiceChannels.length === 0;
+  const isEmpty = textChannels.length === 0 && voiceChannels.length === 0;
 
   return (
     <aside className="channel-list">
@@ -46,12 +48,16 @@ const ChannelList = memo(function ChannelList({
             current={current}
             onSwitch={onSwitch}
             onOpenModal={onOpenModal}
+            micMuted={micMuted}
+            onVoiceMembers={onVoiceMembers}
+            voiceMembers={voiceMembersByChannel}
+            users={users}
           />
         ))}
 
         {isEmpty && (
           <p className="text-muted empty-message">
-            Нет каналов. Добавьте новый с помощью кнопки «+».
+            Нет каналов. Добавьте новый с помощью кнопки "+".
           </p>
         )}
       </div>
@@ -61,6 +67,8 @@ const ChannelList = memo(function ChannelList({
         onChangeStatus={onChangeStatus}
         micMuted={micMuted}
         onToggleMic={onToggleMic}
+        onLeaveVoice={onLeaveVoice}
+        onUserUpdated={onUserUpdated}
       />
     </aside>
   );

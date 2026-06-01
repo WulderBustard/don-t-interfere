@@ -1,8 +1,8 @@
-import React, { memo, useCallback, useState, useContext } from "react";
-import { AuthContext } from "../AuthContext"; // путь подкорректируй
+import React, { memo, useCallback, useContext, useMemo, useState } from "react";
+import { AuthContext } from "../AuthContext";
 import VoiceChannelAuto from "./VoiceChannelAuto";
+import UserAvatar from "./UserAvatar";
 
-// ====================== ChannelItem ======================
 const ChannelItem = memo(function ChannelItem({ id, name, type, active, onClick, onDelete }) {
   const icon = type === "text" ? "#" : "🔊";
 
@@ -10,10 +10,13 @@ const ChannelItem = memo(function ChannelItem({ id, name, type, active, onClick,
     onClick(id);
   }, [id, onClick]);
 
-  const handleDelete = useCallback((e) => {
-    e.stopPropagation();
-    onDelete(id);
-  }, [id, onDelete]);
+  const handleDelete = useCallback(
+    (e) => {
+      e.stopPropagation();
+      onDelete(id);
+    },
+    [id, onDelete]
+  );
 
   return (
     <div
@@ -35,17 +38,24 @@ const ChannelItem = memo(function ChannelItem({ id, name, type, active, onClick,
   );
 });
 
-// ====================== ChannelGroup ======================
 export default function ChannelGroup({
   title,
   type,
   list = [],
   current,
   onSwitch,
-  onOpenModal
+  onOpenModal,
+  micMuted = false,
+  onVoiceMembers,
+  voiceMembers = {},
+  users = [],
 }) {
-  const { user } = useContext(AuthContext); // авторизованный пользователь
+  const { user } = useContext(AuthContext);
   const [activeVoiceProfile, setActiveVoiceProfile] = useState(null);
+  const usersByName = useMemo(
+    () => new Map(users.map((item) => [item.username, item])),
+    [users]
+  );
 
   const handleSwitch = useCallback(
     (id) => {
@@ -54,30 +64,34 @@ export default function ChannelGroup({
 
       if (type === "text") {
         onSwitch({ id: ch.id, name: ch.name, type });
-        setActiveVoiceProfile(null); // закрываем мини-профиль
-      } else if (type === "voice" && user) {
-        // показываем мини-профиль с авторизованным пользователем
+        setActiveVoiceProfile(null);
+        onVoiceMembers?.(ch.id, []);
+        return;
+      }
+
+      if (type === "voice" && user) {
         setActiveVoiceProfile({
-          userName: user.username,
-          avatar: user.avatar || null,
-          channelId: ch.id
+          user,
+          channelId: ch.id,
+          channelName: ch.name,
         });
       }
     },
-    [list, onSwitch, type, user]
+    [list, onSwitch, onVoiceMembers, type, user]
   );
 
   const handleDelete = useCallback(
     (id) => {
       const ch = list.find((c) => c.id === id);
-      if (ch)
+      if (ch) {
         onOpenModal({
           open: true,
           mode: "delete",
           id: ch.id,
           name: ch.name,
-          type
+          type,
         });
+      }
     },
     [list, onOpenModal, type]
   );
@@ -85,6 +99,20 @@ export default function ChannelGroup({
   const handleAdd = useCallback(() => {
     onOpenModal({ open: true, mode: "add", type });
   }, [onOpenModal, type]);
+
+  const handleDisconnect = useCallback(() => {
+    if (activeVoiceProfile) onVoiceMembers?.(activeVoiceProfile.channelId, []);
+    setActiveVoiceProfile(null);
+  }, [activeVoiceProfile, onVoiceMembers]);
+
+  function getVoiceMemberRows(channelId) {
+    const members = voiceMembers[channelId] || [];
+    if (members.length > 0) return members;
+    if (activeVoiceProfile?.channelId === channelId) {
+      return [{ id: "self", name: activeVoiceProfile.user.username }];
+    }
+    return [];
+  }
 
   return (
     <div className="channel-group">
@@ -107,24 +135,53 @@ export default function ChannelGroup({
               onDelete={handleDelete}
             />
 
-            {activeVoiceProfile?.userName &&
-             type === "voice" &&
-             activeVoiceProfile.channelId === ch.id && (
-              <div className="mini-profile">
-                {activeVoiceProfile.avatar && (
-                  <img src={activeVoiceProfile.avatar} alt="avatar" className="avatar" />
-                )}
-                <span>{activeVoiceProfile.userName}</span>
-                <button onClick={() => setActiveVoiceProfile(null)}>
-                  Отключиться
-                </button>
+            {type === "voice" && activeVoiceProfile?.channelId === ch.id && (
+              <div className="voice-channel-members">
+                {getVoiceMemberRows(ch.id).map((member) => {
+                  const memberUser = usersByName.get(member.name) || {
+                    username: member.name,
+                    status: "online",
+                  };
+                  const isSelf = member.name === activeVoiceProfile.user.username;
+                  const isMuted = isSelf ? micMuted : Boolean(memberUser.mic_muted);
 
-                {/* Подключение к голосовому каналу */}
+                  return (
+                    <div className="mini-profile" key={member.id || member.name}>
+                      <div className="mini-profile-user">
+                        <UserAvatar
+                          user={memberUser}
+                          status={memberUser.status || "online"}
+                          size="sm"
+                        />
+                        <span className="mini-profile-name">{member.name}</span>
+                      </div>
+
+                      <div className="mini-profile-actions">
+                        <span
+                          className={`member-mic ${isMuted ? "muted" : ""}`}
+                          title={isMuted ? "Микрофон выключен" : "Микрофон включен"}
+                        >
+                          {isMuted ? "🔇" : "🎤"}
+                        </span>
+                        {isSelf && (
+                          <button
+                            className="voice-disconnect-btn"
+                            onClick={handleDisconnect}
+                            title="Отключиться"
+                            aria-label="Отключиться от голосового канала"
+                          >
+                            ⊘
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
                 <VoiceChannelAuto
-                  key={ch.id}
                   channelId={ch.id}
-                  displayName={activeVoiceProfile.userName}
-                  onMembers={(id, members) => console.log("Members in", id, members)}
+                  displayName={activeVoiceProfile.user.username}
+                  muted={micMuted}
+                  onMembers={onVoiceMembers}
                 />
               </div>
             )}

@@ -1,89 +1,61 @@
-import React, { useMemo, useContext, useEffect, useState } from "react";
+import React, { useMemo, useContext } from "react";
 import { AuthContext } from "../AuthContext";
-import { fetchUsers } from "../api";
+import UserAvatar from "./UserAvatar";
 
-function statusClass(status) {
-  switch (status) {
-    case "online":
-      return "online";
-    case "idle":
-      return "idle";
-    case "dnd":
-      return "dnd";
-    default:
-      return "offline";
-  }
-}
-
-function MemberItem({ name, status, micMuted, isSelf = false }) {
+function MemberItem({ user, status, micMuted, isSelf = false }) {
   return (
     <div className={`member ${isSelf ? "self" : ""}`}>
-      <div className="avatar">
-        {name?.[0]?.toUpperCase() || "U"}
-        <div className={`status-dot ${statusClass(status)}`} title={status}></div>
-      </div>
+      <UserAvatar user={user} status={status} size="sm" />
 
-      <span>
-        {name} {isSelf ? "(Вы)" : ""}
+      <span className="member-name">
+        {user.username} {isSelf ? "(Вы)" : ""}
       </span>
 
-      <span title={micMuted ? "Микрофон выключен" : "Микрофон включен"}>
+      <span
+        className={`member-mic ${micMuted ? "muted" : ""}`}
+        title={micMuted ? "Микрофон выключен" : "Микрофон включен"}
+      >
         {micMuted ? "🔇" : "🎤"}
       </span>
     </div>
   );
 }
 
-export default function MembersPanel({ current, voiceChannels, selfStatus }) {
+export default function MembersPanel({
+  users = [],
+  selfStatus,
+  selfMicMuted = false,
+}) {
   const { user } = useContext(AuthContext);
-  const [allUsers, setAllUsers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadUsers() {
-      try {
-        const users = await fetchUsers();
-        if (mounted) setAllUsers(users);
-      } catch (err) {
-        console.error("Не удалось загрузить пользователей", err);
-      } finally {
-        if (mounted) setLoadingUsers(false);
-      }
-    }
-
-    loadUsers();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const voiceMembers = useMemo(() => {
-    if (current.type !== "voice") return [];
-    return voiceChannels?.[current.id]?.members || [];
-  }, [current, voiceChannels]);
+  const sortedUsers = useMemo(() => {
+    return [...users].sort((a, b) => {
+      const statusWeight = { online: 0, offline: 1 };
+      const aWeight = statusWeight[a.status] ?? 2;
+      const bWeight = statusWeight[b.status] ?? 2;
+      if (aWeight !== bWeight) return aWeight - bWeight;
+      return a.username.localeCompare(b.username);
+    });
+  }, [users]);
 
   return (
     <aside className="members-panel">
       <h6>Участники</h6>
 
-      {loadingUsers ? (
-        <p className="text-muted">Загрузка пользователей...</p>
-      ) : allUsers.length === 0 ? (
+      {sortedUsers.length === 0 ? (
         <p className="text-muted">Пользователей пока нет.</p>
       ) : (
-        allUsers.map((u) => {
-          const isSelf = u.username === user?.username;
-          const inVoice = voiceMembers.some((m) => m.name === u.username);
+        sortedUsers.map((item) => {
+          const isSelf = item.username === user?.username;
+          const status = isSelf ? selfStatus : item.status || "offline";
+          const micMuted = isSelf ? selfMicMuted : Boolean(item.mic_muted);
 
           return (
             <MemberItem
-              key={u.id}
-              name={u.username}
-              status={isSelf ? selfStatus : inVoice ? "online" : "offline"}
-              micMuted={!inVoice}
+              key={item.id || item.username}
+              user={item}
+              status={status}
+              micMuted={micMuted}
               isSelf={isSelf}
             />
           );

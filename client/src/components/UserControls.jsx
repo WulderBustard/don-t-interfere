@@ -1,36 +1,31 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
-import { AuthContext } from "../AuthContext"; // путь подкорректируй
+import { AuthContext } from "../AuthContext";
+import { uploadAvatar } from "../api";
+import UserAvatar from "./UserAvatar";
 
-function statusClass(status) {
-  switch (status) {
-    case "online": return "online";
-    case "idle": return "idle";
-    case "dnd": return "dnd";
-    default: return "offline";
-  }
-}
 function statusLabel(status) {
-  switch (status) {
-    case "online": return "В сети";
-    case "idle": return "Не активен";
-    case "dnd": return "Не беспокоить";
-    default: return "Не в сети";
-  }
-}
-function statusEmoji(status) {
-  switch (status) {
-    case "online": return "🟢";
-    case "idle": return "🌙";
-    case "dnd": return "⛔";
-    default: return "⚫";
-  }
+  return status === "online" ? "В сети" : "Не в сети";
 }
 
-export default function UserControls({ status, onChangeStatus, micMuted, onToggleMic, onLeaveVoice }) {
+function statusEmoji(status) {
+  return status === "online" ? "🟢" : "⚫";
+}
+
+export default function UserControls({
+  status,
+  onChangeStatus,
+  micMuted,
+  onToggleMic,
+  onLeaveVoice,
+  onUserUpdated,
+}) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const fileRef = useRef(null);
   const ref = useRef(null);
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, updateUser } = useContext(AuthContext);
 
   useEffect(() => {
     const handler = (e) => {
@@ -43,43 +38,100 @@ export default function UserControls({ status, onChangeStatus, micMuted, onToggl
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    setAvatarError("");
+
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setAvatarError("JPG, PNG или WEBP");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarError("Максимум 2 МБ");
+      return;
+    }
+
+    setAvatarLoading(true);
+    try {
+      const nextUser = await uploadAvatar(file);
+      updateUser(nextUser);
+      onUserUpdated?.(nextUser);
+    } catch (err) {
+      setAvatarError(err.message || "Ошибка аватара");
+    } finally {
+      setAvatarLoading(false);
+    }
+  }
+
   if (!user) return null;
 
   return (
     <div className="user-controls" ref={ref}>
-      <div className="avatar" onClick={() => setStatusOpen(prev => !prev)} title="Изменить статус">
-        <div className={`status-dot ${statusClass(status)}`}></div>
+      <UserAvatar
+        user={user}
+        status={status}
+        onClick={() => setStatusOpen((prev) => !prev)}
+        title="Изменить статус"
+      />
+
+      <div className="user-info">
+        <span className="username">{user.username}</span>
+        {avatarError && <span className="avatar-error">{avatarError}</span>}
       </div>
 
-      <span className="username">{user.username}</span>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="avatar-input"
+        onChange={handleAvatarChange}
+      />
 
       <div className="actions">
-        <button className={`mic ${micMuted ? "muted" : ""}`} onClick={onToggleMic} title={micMuted ? "Микрофон выключен" : "Микрофон включен"}>
+        <button
+          className={`mic ${micMuted ? "muted" : ""}`}
+          onClick={onToggleMic}
+          title={micMuted ? "Микрофон выключен" : "Микрофон включен"}
+        >
           {micMuted ? "🔇" : "🎙️"}
         </button>
 
         {onLeaveVoice && (
           <button className="leave-voice" onClick={onLeaveVoice} title="Выйти из голосового канала">
-            🔈✖
+            🔈×
           </button>
         )}
 
-        <button className="btn-settings" title="Настройки" onClick={() => setMenuOpen(prev => !prev)}>
+        <button className="btn-settings" title="Настройки" onClick={() => setMenuOpen((prev) => !prev)}>
           ⚙️
         </button>
 
         {menuOpen && (
-          <div className="status-menu">
-            <button className="logout-button" onClick={() => logout()}>🔓 Выйти</button>
+          <div className="status-menu settings-menu">
+            <button onClick={() => fileRef.current?.click()} disabled={avatarLoading}>
+              {avatarLoading ? "Загрузка..." : "Сменить аватар"}
+            </button>
+            <button className="logout-button" onClick={() => logout()}>
+              🔒 Выйти
+            </button>
           </div>
         )}
       </div>
 
       {statusOpen && (
         <div className="status-menu">
-          {["online", "idle", "dnd", "offline"].map(s => (
-            <button key={s} className={s === status ? "active" : ""} onClick={() => { onChangeStatus(s); setStatusOpen(false); }}>
-              {statusEmoji(s)} {statusLabel(s)}
+          {["online", "offline"].map((item) => (
+            <button
+              key={item}
+              className={item === status ? "active" : ""}
+              onClick={() => {
+                onChangeStatus(item);
+                setStatusOpen(false);
+              }}
+            >
+              {statusEmoji(item)} {statusLabel(item)}
             </button>
           ))}
         </div>

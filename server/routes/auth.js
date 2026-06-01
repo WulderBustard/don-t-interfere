@@ -35,8 +35,12 @@ router.post("/login", (req, res) => {
   const valid = bcrypt.compareSync(password, user.password);
   if (!valid) return res.status(401).json({ error: "Неверный пароль" });
 
+  const publicUser = db.updateUserPresence(username, {
+    status: "online",
+    micMuted: Boolean(user.mic_muted),
+  });
   const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "24h" });
-  res.json({ user: { id: user.id, username: user.username }, token });
+  res.json({ user: publicUser, token });
 });
 
 module.exports = router;

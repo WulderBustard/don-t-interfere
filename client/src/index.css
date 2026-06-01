@@ -87,12 +87,80 @@ button:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 1.3em;
+  gap: 8px;
+  font-size: 1.04em;
   color: #ccc;
   margin-bottom: 4px;
+  min-width: 0;
 }
 
-.mini-profile button {}
+.voice-channel-members {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mini-profile-user {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1 1 auto;
+  margin-left: 8px;
+}
+
+.mini-profile .avatar-sm {
+  width: 26px;
+  height: 26px;
+  font-size: 0.68rem;
+}
+
+.mini-profile .status-dot {
+  width: 8px;
+  height: 8px;
+  border-width: 1px;
+  bottom: 1px;
+  right: 1px;
+}
+
+.mini-profile-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mini-profile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.mini-profile .member-mic {
+  font-size: 0.8em;
+}
+
+.voice-disconnect-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #f04747;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+}
+
+.voice-disconnect-btn:hover {
+  background: rgba(240, 71, 71, 0.14);
+  color: #ff6b6b;
+}
 
 /* ======= Текст категории каналов и знак + ======= */
 .channel-category {
@@ -226,6 +294,31 @@ button:focus-visible {
   justify-content: center;
   cursor: pointer;
   position: relative;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar span:not(.status-dot) {
+  line-height: 1;
+}
+
+.avatar-sm {
+  width: 32px;
+  height: 32px;
+  font-size: 0.85rem;
+}
+
+.avatar-md {
+  width: 36px;
+  height: 36px;
 }
 
 .status-dot {
@@ -235,11 +328,40 @@ button:focus-visible {
   position: absolute;
   bottom: 2px;
   right: 2px;
+  border: 2px solid #232428;
+  background: #747f8d;
+}
+
+.status-dot.online {
+  background: #23a55a;
+}
+
+.status-dot.offline {
+  background: #747f8d;
+}
+
+.user-info {
+  flex: 1;
+  margin-left: 10px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .username {
-  flex: 1;
-  margin-left: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar-input {
+  display: none;
+}
+
+.avatar-error {
+  color: #f04747;
+  font-size: 0.7rem;
+  line-height: 1.1;
 }
 
 .actions button {
@@ -314,6 +436,12 @@ button:focus-visible {
   z-index: 5;
 }
 
+.settings-menu {
+  left: auto;
+  right: 10px;
+  min-width: 150px;
+}
+
 .status-menu button {
   background: none;
   border: none;
@@ -357,11 +485,17 @@ button:focus-visible {
 /*====сообщения====*/
 .message {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   background: #313338;
   border-radius: 10px;
   padding: 10px 14px;
   width: 95%;
+}
+
+.message-body {
+  min-width: 0;
+  flex: 1;
 }
 
 .chat-messages {
@@ -387,7 +521,22 @@ button:focus-visible {
 .message-meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+.message-day-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.date-separator {
+  align-self: center;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.78rem;
+  margin: 10px 0 6px;
+  text-align: center;
 }
 
 .message-text {
@@ -400,6 +549,7 @@ button:focus-visible {
 
 .message.own b,
 .message.own .timestamp,
+.message.own .sent-at,
 .message.own .message-text {
   color: #fff;
 }
@@ -412,6 +562,11 @@ button:focus-visible {
   font-size: 0.8em;
   color: #888;
   margin-left: 4px;
+}
+
+.sent-at {
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 0.72rem;
 }
 
 
@@ -507,9 +662,26 @@ button:focus-visible {
 .member {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   padding: 6px 4px;
   border-radius: 4px;
+}
+
+.member-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-mic {
+  flex: 0 0 auto;
+  opacity: 0.9;
+}
+
+.member-mic.muted {
+  color: #f04747;
 }
 
 /*================Модальное окно=================*/

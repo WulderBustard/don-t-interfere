@@ -1,22 +1,24 @@
 import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom"; // ← добавлено
+import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 
 export default function LoginPage() {
   const { login, register } = useContext(AuthContext);
-  const navigate = useNavigate(); // ← добавлено
+  const navigate = useNavigate();
   const [isRegister, setIsRegister] = useState(false);
   const [form, setForm] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
-    try {
-      if (isRegister) await register(form.username, form.password);
-      await login(form.username, form.password);
+    setError("");
 
-      // ← редирект после успешного входа
-      navigate("/");
+    try {
+      const ok = isRegister
+        ? await register(form.username, form.password)
+        : await login(form.username, form.password);
+
+      if (ok) navigate("/");
     } catch (err) {
       setError(err.message);
     }
@@ -31,13 +33,13 @@ export default function LoginPage() {
             type="text"
             placeholder="Логин"
             value={form.username}
-            onChange={e => setForm({ ...form, username: e.target.value })}
+            onChange={(e) => setForm({ ...form, username: e.target.value })}
           />
           <input
             type="password"
             placeholder="Пароль"
             value={form.password}
-            onChange={e => setForm({ ...form, password: e.target.value })}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
           <button type="submit">
             {isRegister ? "Создать аккаунт" : "Войти"}

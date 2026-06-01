@@ -26,12 +26,13 @@ module.exports = function createMessagesRouter(io) {
     const { channelId } = req.params;
     const { user, text, time } = req.body;
 
-    if (!user || !text || !time) {
+    if (!user || !text) {
       return res.status(400).json({ error: "Invalid payload" });
     }
 
     try {
-      const message = db.addMessage(channelId, user, text, time);
+      const createdAt = new Date().toISOString();
+      const message = db.addMessage(channelId, user, text, time || createdAt, createdAt);
 
       const payload = {
         ...message,

@@ -1,20 +1,86 @@
-import { useState, useRef, useEffect, useContext } from "react";
+import { useState, useRef, useEffect, useContext, useMemo } from "react";
 import { AuthContext } from "../AuthContext";
+import UserAvatar from "./UserAvatar";
 
+function parseMessageDate(raw) {
+  if (!raw) return null;
 
-function MessageItem({ user, time, text, isOwn }) {
+  if (raw instanceof Date) {
+    return Number.isNaN(raw.getTime()) ? null : raw;
+  }
+
+  const value = String(raw).trim();
+  const sqliteUtcMatch = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
+  );
+
+  if (sqliteUtcMatch) {
+    const [, year, month, day, hour, minute, second = "00"] = sqliteUtcMatch;
+    return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getMessageDate(message) {
+  const raw = message.created_at || message.createdAt || message.time;
+  return parseMessageDate(raw) || new Date(0);
+}
+
+function dayKey(date) {
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
+function formatDateSeparator(date) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const messageDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((today - messageDay) / 86400000);
+
+  if (diffDays === 0) return "Сегодня";
+  if (diffDays === 1) return "Вчера";
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+  }).format(date);
+}
+
+function formatTime(date) {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatSentAt(date) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function MessageItem({ message, author, isOwn }) {
+  const date = getMessageDate(message);
+
   return (
     <div className={`message ${isOwn ? "own" : "other"}`}>
-      <div className="message-meta">
-        <b>{user}</b>
-        <span className="timestamp">{time}</span>
+      <UserAvatar user={author} username={message.user} status={author?.status || "offline"} size="sm" />
+      <div className="message-body">
+        <div className="message-meta">
+          <b>{message.user}</b>
+          <span className="timestamp" title={formatSentAt(date)}>
+            {formatTime(date)}
+          </span>
+          <span className="sent-at">Отправлено: {formatSentAt(date)}</span>
+        </div>
+        <div className="message-text">{message.text}</div>
       </div>
-      <div className="message-text">{text}</div>
     </div>
   );
 }
 
-export default function ChatPanel({ current, messages, onSend, onToggleMembers }) {
+export default function ChatPanel({ current, messages, users = [], onSend, onToggleMembers }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -25,6 +91,33 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
   const inputRef = useRef(null);
 
   const isTextChannel = current.type === "text";
+  const usersByName = useMemo(
+    () => new Map(users.map((item) => [item.username, item])),
+    [users]
+  );
+
+  const groupedMessages = useMemo(() => {
+    const sorted = [...messages].sort((a, b) => {
+      const diff = getMessageDate(a) - getMessageDate(b);
+      if (diff !== 0) return diff;
+      return (a.id || 0) - (b.id || 0);
+    });
+
+    const groups = [];
+    for (const message of sorted) {
+      const date = getMessageDate(message);
+      const key = dayKey(date);
+      const last = groups[groups.length - 1];
+
+      if (!last || last.key !== key) {
+        groups.push({ key, date, messages: [message] });
+      } else {
+        last.messages.push(message);
+      }
+    }
+
+    return groups;
+  }, [messages]);
 
   useEffect(() => {
     if (isTextChannel) {
@@ -39,16 +132,7 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
     requestAnimationFrame(() => {
       el.scrollTop = el.scrollHeight;
     });
-  }, [messages]);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
-    });
-  }, [current]);
+  }, [messages, current]);
 
   useEffect(() => {
     const el = ref.current;
@@ -120,31 +204,37 @@ export default function ChatPanel({ current, messages, onSend, onToggleMembers }
       <div className="chat-messages" ref={ref}>
         {!isTextChannel ? (
           <p className="text-muted">Это голосовой канал.</p>
-        ) : messages.length === 0 ? (
+        ) : groupedMessages.length === 0 ? (
           <p className="text-muted">Сообщений пока нет.</p>
         ) : (
-          messages.map((m, i) => (
-            <MessageItem
-              key={m.id ?? i}
-              user={m.user}
-              time={m.time}
-              text={m.text}
-              isOwn={m.user === user?.username}
-            />
+          groupedMessages.map((group) => (
+            <div className="message-day-group" key={group.key}>
+              <div className="date-separator">{formatDateSeparator(group.date)}</div>
+              {group.messages.map((message, index) => {
+                const author = usersByName.get(message.user);
+                return (
+                  <MessageItem
+                    key={message.id ?? `${group.key}-${index}`}
+                    message={message}
+                    author={author}
+                    isOwn={message.user === user?.username}
+                  />
+                );
+              })}
+            </div>
           ))
         )}
       </div>
 
-        {showScrollDown && (
-          <button
-            className="scroll-down-btn"
-            onClick={scrollToBottom}
-            title="Прокрутить вниз"
-          >
-            ↓
-          </button>
-        )}
-
+      {showScrollDown && (
+        <button
+          className="scroll-down-btn"
+          onClick={scrollToBottom}
+          title="Прокрутить вниз"
+        >
+          ↓
+        </button>
+      )}
 
       {isTextChannel && (
         <footer className="message-input">

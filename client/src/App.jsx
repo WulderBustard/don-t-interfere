@@ -2,8 +2,7 @@ import React, { useState, useContext, useCallback, useEffect, useRef } from "rea
 import { io } from "socket.io-client";
 import "./index.css";
 import { useChannels } from "./hooks/useChannels";
-import { sendMessageApi } from "./api";
-import { timeHHMM } from "./utils/helpers";
+import { API_BASE, fetchUsers, sendMessageApi, updatePresence } from "./api";
 import { AuthContext } from "./AuthContext";
 import ChannelList from "./components/ChannelList";
 import ChatPanel from "./components/ChatPanel";
@@ -13,11 +12,10 @@ import VoiceChannelAuto from "./components/VoiceChannelAuto";
 
 const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL ||
-  import.meta.env.VITE_API_URL ||
-  "https://localhost:3001";
+  API_BASE;
 
 export default function App() {
-  const { user } = useContext(AuthContext);
+  const { user, updateUser } = useContext(AuthContext);
 
   const {
     channels,
@@ -29,40 +27,118 @@ export default function App() {
     deleteChannel,
   } = useChannels();
 
+  const [users, setUsers] = useState([]);
   const [isMembersOpen, setMembersOpen] = useState(false);
-  const [isMicMuted, setMicMuted] = useState(false);
-  const [selfStatus, setSelfStatus] = useState("online");
+  const [isMicMuted, setMicMuted] = useState(Boolean(user?.mic_muted));
+  const [selfStatus, setSelfStatus] = useState(user?.status || "online");
   const [modal, setModal] = useState({ open: false });
-  const [voiceChannel, setVoiceChannel] = useState(null);
-  const [voiceMembers, setVoiceMembers] = useState([]);
+  const [voiceMembersByChannel, setVoiceMembersByChannel] = useState({});
 
   const socketRef = useRef(null);
+  const hasMarkedOnlineRef = useRef(false);
 
   const toggleMembers = useCallback(() => setMembersOpen((prev) => !prev), []);
-  const toggleMic = useCallback(() => setMicMuted((prev) => !prev), []);
   const closeModal = useCallback(() => setModal({ open: false }), []);
+  const handleVoiceMembers = useCallback((channelId, members) => {
+    setVoiceMembersByChannel((prev) => ({
+      ...prev,
+      [channelId]: members,
+    }));
+  }, []);
 
-  // realtime-подписка на новые текстовые сообщения
+  const patchUserInList = useCallback((nextUser) => {
+    if (!nextUser?.username) return;
+
+    setUsers((prev) => {
+      const exists = prev.some((item) => item.username === nextUser.username);
+      if (!exists) return [...prev, nextUser].sort((a, b) => a.username.localeCompare(b.username));
+
+      return prev.map((item) =>
+        item.username === nextUser.username ? { ...item, ...nextUser } : item
+      );
+    });
+  }, []);
+
+  const persistPresence = useCallback(
+    async ({ status = selfStatus, micMuted = isMicMuted }) => {
+      if (!user) return null;
+
+      const nextUser = await updatePresence({ status, micMuted });
+      updateUser(nextUser);
+      patchUserInList(nextUser);
+      return nextUser;
+    },
+    [isMicMuted, patchUserInList, selfStatus, updateUser, user]
+  );
+
+  const setPresenceStatus = useCallback(
+    (status) => {
+      setSelfStatus(status);
+      persistPresence({ status, micMuted: isMicMuted }).catch(console.error);
+    },
+    [isMicMuted, persistPresence]
+  );
+
+  const toggleMic = useCallback(() => {
+    setMicMuted((prev) => {
+      const next = !prev;
+      persistPresence({ status: selfStatus, micMuted: next }).catch(console.error);
+      return next;
+    });
+  }, [persistPresence, selfStatus]);
+
+  const handleUserUpdated = useCallback(
+    (nextUser) => {
+      patchUserInList(nextUser);
+      if (nextUser?.username === user?.username) {
+        updateUser(nextUser);
+        setSelfStatus(nextUser.status || "online");
+        setMicMuted(Boolean(nextUser.mic_muted));
+      }
+    },
+    [patchUserInList, updateUser, user?.username]
+  );
+
+  const leaveVoiceChannel = useCallback(() => {
+    setCurrent(null);
+    setVoiceMembersByChannel({});
+  }, [setCurrent]);
+
   useEffect(() => {
+    if (!user) return;
+
+    setSelfStatus(user.status || "online");
+    setMicMuted(Boolean(user.mic_muted));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || hasMarkedOnlineRef.current) return;
+    hasMarkedOnlineRef.current = true;
+    if (user.status !== "online") setPresenceStatus("online");
+  }, [setPresenceStatus, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    fetchUsers()
+      .then(setUsers)
+      .catch(console.error);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
     const socket = io(SOCKET_URL, {
       transports: ["websocket"],
     });
 
     socketRef.current = socket;
 
-    socket.on("connect", () => {
-      console.log("Chat socket connected:", socket.id);
-    });
-
     socket.on("message:new", (message) => {
       const channelKey = String(message.channelId ?? message.channel_id);
 
       setMessagesByChannel((prev) => {
         const existing = prev[channelKey] || [];
-
-        // защита от дублей:
-        // отправитель уже добавляет сообщение локально после POST,
-        // а потом получает то же сообщение через socket broadcast
         const alreadyExists = existing.some((item) => item.id === message.id);
         if (alreadyExists) return prev;
 
@@ -73,15 +149,35 @@ export default function App() {
       });
     });
 
-    socket.on("disconnect", () => {
-      console.log("Chat socket disconnected");
-    });
+    socket.on("user:updated", handleUserUpdated);
 
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [setMessagesByChannel]);
+  }, [handleUserUpdated, setMessagesByChannel, user]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const markOffline = () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      fetch(`${API_BASE}/users/me/presence`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: "offline", micMuted: isMicMuted }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+
+    window.addEventListener("beforeunload", markOffline);
+    return () => window.removeEventListener("beforeunload", markOffline);
+  }, [isMicMuted, user]);
 
   const sendMessage = useCallback(
     async (text) => {
@@ -96,7 +192,6 @@ export default function App() {
       const payload = {
         user: user.username,
         text: trimmed,
-        time: timeHHMM(),
       };
 
       try {
@@ -138,15 +233,21 @@ export default function App() {
         onSwitch={setCurrent}
         onOpenModal={setModal}
         selfStatus={selfStatus}
-        onChangeStatus={setSelfStatus}
+        onChangeStatus={setPresenceStatus}
         micMuted={isMicMuted}
         onToggleMic={toggleMic}
+        onLeaveVoice={current?.type === "voice" ? leaveVoiceChannel : undefined}
+        onUserUpdated={handleUserUpdated}
+        onVoiceMembers={handleVoiceMembers}
+        voiceMembersByChannel={voiceMembersByChannel}
+        users={users}
       />
 
       {current ? (
         <ChatPanel
           current={current}
           messages={messagesByChannel[current.id] || []}
+          users={users}
           onSend={sendMessage}
           onToggleMembers={toggleMembers}
         />
@@ -159,9 +260,10 @@ export default function App() {
       {isMembersOpen && current && (
         <MembersPanel
           current={current}
-          voiceChannels={channels.voice}
+          users={users}
+          voiceMembers={voiceMembersByChannel[current.id] || []}
           selfStatus={selfStatus}
-          selfName={user?.username}
+          selfMicMuted={isMicMuted}
         />
       )}
 
@@ -177,10 +279,8 @@ export default function App() {
         <VoiceChannelAuto
           channelId={current.id}
           displayName={user?.username}
-          onMembers={(id, members) => {
-            setVoiceChannel(channels.voice?.[id] || null);
-            setVoiceMembers(members);
-          }}
+          muted={isMicMuted}
+          onMembers={handleVoiceMembers}
         />
       )}
     </div>

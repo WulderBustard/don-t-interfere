@@ -1,5 +1,6 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useEffect, useState } from "react";
-import { API_BASE } from "./api";
+import { API_BASE, fetchMe, updatePresence } from "./api";
 
 export const AuthContext = createContext(null);
 
@@ -7,15 +8,39 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  function persistUser(nextUser) {
+    if (!nextUser) return;
+    localStorage.setItem("user", JSON.stringify(nextUser));
+    localStorage.setItem("username", nextUser.username);
+    setUser(nextUser);
+  }
+
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const username = localStorage.getItem("username");
+    const savedUser = localStorage.getItem("user");
 
-    if (token && username) {
-      setUser({ username });
+    if (!token) {
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch {
+        localStorage.removeItem("user");
+      }
+    }
+
+    fetchMe()
+      .then(persistUser)
+      .catch(() => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("username");
+        localStorage.removeItem("user");
+        setUser(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   async function login(username, password) {
@@ -23,7 +48,7 @@ export function AuthProvider({ children }) {
 
     if (!trimmed || !password) {
       alert("Логин и пароль не могут быть пустыми");
-      return;
+      return false;
     }
 
     try {
@@ -37,15 +62,16 @@ export function AuthProvider({ children }) {
 
       if (!res.ok) {
         alert(data.error || "Ошибка авторизации");
-        return;
+        return false;
       }
 
       localStorage.setItem("token", data.token);
-      localStorage.setItem("username", trimmed);
-      setUser({ username: trimmed });
+      persistUser(data.user);
+      return true;
     } catch (err) {
       console.error(err);
       alert("Ошибка сети");
+      return false;
     }
   }
 
@@ -54,7 +80,7 @@ export function AuthProvider({ children }) {
 
     if (!trimmed || !password) {
       alert("Логин и пароль не могут быть пустыми");
-      return;
+      return false;
     }
 
     try {
@@ -66,19 +92,26 @@ export function AuthProvider({ children }) {
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || "Ошибка регистрации");
+
+      localStorage.setItem("token", data.token);
+      persistUser(data.user);
+      return true;
     } catch (err) {
       console.error(err);
       alert(err.message || "Ошибка сети");
+      return false;
     }
   }
 
   function logout() {
+    updatePresence({ status: "offline", micMuted: user?.mic_muted ?? false }).catch(() => {});
     localStorage.removeItem("token");
     localStorage.removeItem("username");
+    localStorage.removeItem("user");
     setUser(null);
   }
 
-  const value = { user, login, register, logout, loading };
+  const value = { user, login, register, logout, loading, updateUser: persistUser };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

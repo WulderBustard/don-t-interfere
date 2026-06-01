@@ -10,11 +10,21 @@ if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
 const db = new Database(DB_FILE);
 
+function ensureColumn(table, column, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  const exists = columns.some((item) => item.name === column);
+  if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT NOT NULL UNIQUE,
   password TEXT NOT NULL,
+  avatar_url TEXT,
+  status TEXT NOT NULL DEFAULT 'offline',
+  mic_muted INTEGER NOT NULL DEFAULT 0,
+  last_seen TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -31,9 +41,38 @@ CREATE TABLE IF NOT EXISTS messages (
   user TEXT,
   text TEXT,
   time TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY(channel_id) REFERENCES channels(id) ON DELETE CASCADE
 );
 `);
+
+ensureColumn("users", "avatar_url", "TEXT");
+ensureColumn("users", "status", "TEXT NOT NULL DEFAULT 'offline'");
+ensureColumn("users", "mic_muted", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("users", "last_seen", "TEXT");
+ensureColumn("messages", "created_at", "TEXT");
+
+db.prepare("UPDATE users SET status = 'online' WHERE status = 'idle'").run();
+
+db.prepare(`
+  UPDATE messages
+  SET created_at = replace(created_at, ' ', 'T') || '.000Z'
+  WHERE created_at IS NOT NULL
+    AND created_at NOT LIKE '%T%'
+    AND created_at GLOB '????-??-?? ??:??:*'
+`).run();
+
+db.prepare(`
+  UPDATE messages
+  SET created_at = COALESCE(
+    created_at,
+    CASE
+      WHEN time GLOB '[0-9][0-9]:[0-9][0-9]' THEN date('now') || 'T' || time || ':00.000Z'
+      ELSE strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+    END
+  )
+  WHERE created_at IS NULL
+`).run();
 
 module.exports = {
   getAllChannels() {
@@ -54,14 +93,18 @@ module.exports = {
   },
 
   getMessages(channelId) {
-    const stmt = db.prepare("SELECT id, user, text, time FROM messages WHERE channel_id = ? ORDER BY id");
+    const stmt = db.prepare(
+      "SELECT id, user, text, time, created_at FROM messages WHERE channel_id = ? ORDER BY created_at, id"
+    );
     return stmt.all(channelId);
   },
 
-  addMessage(channelId, user, text, time) {
-    const stmt = db.prepare("INSERT INTO messages (channel_id, user, text, time) VALUES (?, ?, ?, ?)");
-    const info = stmt.run(channelId, user, text, time);
-    return { id: info.lastInsertRowid, channel_id: channelId, user, text, time };
+  addMessage(channelId, user, text, time, createdAt) {
+    const stmt = db.prepare(
+      "INSERT INTO messages (channel_id, user, text, time, created_at) VALUES (?, ?, ?, ?, ?)"
+    );
+    const info = stmt.run(channelId, user, text, time, createdAt);
+    return { id: info.lastInsertRowid, channel_id: channelId, user, text, time, created_at: createdAt };
   },
 
   getUser(username) {
@@ -70,11 +113,61 @@ module.exports = {
   },
 
   getAllUsers() {
-    const stmt = db.prepare("SELECT id, username, created_at FROM users ORDER BY username ASC");
+    const stmt = db.prepare(
+      "SELECT id, username, avatar_url, status, mic_muted, last_seen, created_at FROM users ORDER BY username ASC"
+    );
     return stmt.all();
   },
 
   createUser(username, passwordHash) {
+    const stmt = db.prepare(
+      "INSERT INTO users (username, password, status, mic_muted, last_seen) VALUES (?, ?, 'online', 0, ?)"
+    );
+    const now = new Date().toISOString();
+    const info = stmt.run(username, passwordHash, now);
+    return { id: info.lastInsertRowid, username, avatar_url: null, status: "online", mic_muted: 0, last_seen: now };
+  },
+
+  getPublicUser(username) {
+    const stmt = db.prepare(
+      "SELECT id, username, avatar_url, status, mic_muted, last_seen, created_at FROM users WHERE username = ?"
+    );
+    return stmt.get(username);
+  },
+
+  updateUserPresence(username, { status, micMuted }) {
+    const allowedStatuses = new Set(["online", "offline"]);
+    const current = this.getPublicUser(username);
+    if (!current) return null;
+
+    const nextStatus = allowedStatuses.has(status) ? status : current.status;
+    const nextMicMuted = typeof micMuted === "boolean" ? (micMuted ? 1 : 0) : current.mic_muted;
+    const lastSeen = new Date().toISOString();
+
+    db.prepare(
+      "UPDATE users SET status = ?, mic_muted = ?, last_seen = ? WHERE username = ?"
+    ).run(nextStatus, nextMicMuted, lastSeen, username);
+
+    return this.getPublicUser(username);
+  },
+
+  updateUserAvatar(username, avatarUrl) {
+    db.prepare("UPDATE users SET avatar_url = ? WHERE username = ?").run(avatarUrl, username);
+    return this.getPublicUser(username);
+  },
+
+  getAvatarPath(username) {
+    const stmt = db.prepare("SELECT avatar_url FROM users WHERE username = ?");
+    return stmt.get(username)?.avatar_url || null;
+  },
+
+  markUserOffline(username) {
+    const lastSeen = new Date().toISOString();
+    db.prepare("UPDATE users SET status = 'offline', last_seen = ? WHERE username = ?").run(lastSeen, username);
+    return this.getPublicUser(username);
+  },
+
+  createUserLegacy(username, passwordHash) {
     const stmt = db.prepare("INSERT INTO users (username, password) VALUES (?, ?)");
     const info = stmt.run(username, passwordHash);
     return { id: info.lastInsertRowid, username };

@@ -4,16 +4,14 @@
 export const statusEmoji = (s) =>
   ({
     online: "🟢",
-    idle: "🟡",
     dnd: "⛔",
     offline: "⚫",
   }[s] || "⚫");
 
-// Подписи статусов (для тултипов и меню)
+// Подписи статусов для тултипов и меню
 export const statusLabel = (s) =>
   ({
     online: "Онлайн",
-    idle: "Нет на месте",
     dnd: "Не беспокоить",
     offline: "Невидимый",
   }[s] || "Невидимый");
@@ -22,7 +20,6 @@ export const statusLabel = (s) =>
 export const statusClass = (s) =>
   ({
     online: "status-online",
-    idle: "status-idle",
     dnd: "status-dnd",
     offline: "status-offline",
   }[s] || "status-offline");

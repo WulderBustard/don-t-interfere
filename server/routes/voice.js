@@ -1,41 +1,48 @@
-// routes/voice.js
-module.exports = function(io) {
-  const channels = {}; // { channelId: { socketId: name } }
+module.exports = function setupVoice(io) {
+  const channels = {};
 
   io.on("connection", (socket) => {
     console.log("New voice connection:", socket.id);
 
     socket.on("join-channel", ({ channelId, name }) => {
-      if (!channels[channelId]) channels[channelId] = {};
-      channels[channelId][socket.id] = name;
+      const roomId = String(channelId);
+      if (!channels[roomId]) channels[roomId] = {};
 
-      // Отправляем существующих пиров
-      const peers = Object.keys(channels[channelId]).filter(id => id !== socket.id);
+      const peers = Object.keys(channels[roomId]);
       socket.emit("existing-peers", { peers });
 
-      // Обновляем участников
-      const members = Object.entries(channels[channelId]).map(([id, n]) => ({ id, name: n }));
-      io.to(channelId).emit("members-update", { members });
+      socket.join(roomId);
+      channels[roomId][socket.id] = name;
 
-      socket.join(channelId);
-
-      // Для фронта звуковой сигнал
+      const members = Object.entries(channels[roomId]).map(([id, memberName]) => ({
+        id,
+        name: memberName,
+      }));
+      io.to(roomId).emit("members-update", { members });
       socket.emit("play-connect-sound");
     });
 
     socket.on("leave-channel", ({ channelId }) => {
-      if (channels[channelId]) {
-        delete channels[channelId][socket.id];
-        const members = Object.entries(channels[channelId]).map(([id, name]) => ({ id, name }));
-        io.to(channelId).emit("members-update", { members });
+      const roomId = String(channelId);
+      if (channels[roomId]) {
+        delete channels[roomId][socket.id];
+        const members = Object.entries(channels[roomId]).map(([id, name]) => ({ id, name }));
+        io.to(roomId).emit("members-update", { members });
       }
-      socket.leave(channelId);
+      socket.leave(roomId);
     });
 
-    // Сигналы WebRTC
-    socket.on("signal:offer", ({ to, sdp }) => io.to(to).emit("signal:offer", { from: socket.id, sdp }));
-    socket.on("signal:answer", ({ to, sdp }) => io.to(to).emit("signal:answer", { from: socket.id, sdp }));
-    socket.on("signal:ice", ({ to, candidate }) => io.to(to).emit("signal:ice", { from: socket.id, candidate }));
+    socket.on("signal:offer", ({ to, sdp }) => {
+      io.to(to).emit("signal:offer", { from: socket.id, sdp });
+    });
+
+    socket.on("signal:answer", ({ to, sdp }) => {
+      io.to(to).emit("signal:answer", { from: socket.id, sdp });
+    });
+
+    socket.on("signal:ice", ({ to, candidate }) => {
+      io.to(to).emit("signal:ice", { from: socket.id, candidate });
+    });
 
     socket.on("disconnect", () => {
       for (const channelId in channels) {
