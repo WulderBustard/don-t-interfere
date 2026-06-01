@@ -1,62 +1,53 @@
 # don-t-interfere
 
-Веб-приложение в стиле Discord: регистрация и вход пользователей, текстовые и голосовые каналы, сообщения в реальном времени и список участников.
+Веб-приложение в стиле Discord: регистрация и вход, текстовые и голосовые каналы, сообщения в реальном времени, аватары, статусы пользователей, участники канала и админское управление пользователями.
 
 Проект состоит из двух частей:
 
-- `client` - React/Vite клиент, который открывается в браузере.
-- `server` - Node.js/Express сервер с HTTPS, REST API, Socket.IO и SQLite базой данных.
+- `client` - React/Vite клиент.
+- `server` - Node.js/Express HTTPS API, Socket.IO, WebRTC signaling и SQLite.
 
 ## Требования
 
-Для запуска нужны:
-
 - Node.js `v22.x`.
-- npm, устанавливается вместе с Node.js.
+- npm.
 - Браузер с поддержкой HTTPS, WebRTC и доступа к микрофону.
-- Windows, macOS или Linux.
+- Для Windows при пересборке native-зависимостей может понадобиться Visual Studio Build Tools C++.
 
-Для Windows может дополнительно понадобиться:
+В текущей локальной настройке приложение работает только по IP компьютера:
 
-- Python 3, если native-зависимости придется собирать локально.
-- Visual Studio Build Tools с компонентами C++, если `npm install` не найдет готовые prebuild-бинарники для `better-sqlite3`, `sqlite3` или `mediasoup`.
+```text
+https://10.21.3.86:3000
+```
 
-В проекте уже есть self-signed HTTPS сертификаты:
-
-- `client/cert.pem`
-- `client/key.pem`
-- `server/cert.pem`
-- `server/key.pem`
-
-При первом открытии браузер может показать предупреждение о небезопасном сертификате. Для локальной разработки это ожидаемо.
+`localhost` и доменные имена отключены на уровне привязки сервера/клиента.
 
 ## Быстрый Запуск
 
-Откройте два терминала: один для сервера, второй для клиента.
+Запустите сервер в первом терминале:
 
-### 1. Установка зависимостей сервера
-
-```bash
-cd server
-npm install
+```powershell
+cd C:\Users\Admin\Documents\don-t-interfere\server
+C:\Users\Admin\tools\node-v22.22.3-win-x64\node.exe index.js
 ```
 
-### 2. Запуск сервера
+Запустите клиент во втором терминале:
 
-```bash
-npm start
+```powershell
+cd C:\Users\Admin\Documents\don-t-interfere\client
+C:\Users\Admin\tools\node-v22.22.3-win-x64\node.exe .\node_modules\vite\bin\vite.js --force
 ```
 
-Сервер запускается на:
+Откройте:
 
 ```text
-https://localhost:3001
+https://10.21.3.86:3000
 ```
 
-Проверка:
+Проверка API:
 
-```bash
-curl -k https://localhost:3001/
+```powershell
+curl.exe -k https://10.21.3.86:3001/
 ```
 
 Ожидаемый ответ:
@@ -65,40 +56,45 @@ curl -k https://localhost:3001/
 OK
 ```
 
-### 3. Установка зависимостей клиента
+## Установка Зависимостей
 
-В новом терминале:
+Сервер:
 
-```bash
+```powershell
+cd server
+npm install
+```
+
+Клиент:
+
+```powershell
 cd client
 npm install
 ```
 
-Если на Windows установка падает на `better-sqlite3`, можно установить клиентские зависимости без install-скриптов:
+## Администратор
 
-```bash
-npm install --ignore-scripts
-```
-
-Для текущего клиента это допустимо, потому что SQLite используется сервером, а не React-приложением в браузере.
-
-### 4. Запуск клиента
-
-```bash
-npm run dev
-```
-
-Клиент запускается на:
+При запуске сервер автоматически создает или обновляет админскую учетную запись:
 
 ```text
-https://localhost:3000
+Логин: Admin
+Пароль: Admin123!
 ```
 
-Откройте в браузере:
+Пароль можно изменить через переменные окружения сервера:
 
-```text
-https://localhost:3000/
+```env
+ADMIN_USERNAME=Admin
+ADMIN_PASSWORD=Admin123!
 ```
+
+Возможности администратора:
+
+- удаление обычных пользователей из панели участников;
+- удаление любых каналов;
+- удаление канала `main` / `Main`.
+
+Обычный пользователь может удалить только канал, который создал сам. Канал `main` обычный пользователь удалить не может.
 
 ## Переменные Окружения
 
@@ -108,51 +104,199 @@ https://localhost:3000/
 PORT=3001
 DB_FILE=./db/data.sqlite
 JWT_SECRET=wdawjgawd;k
+ADMIN_USERNAME=Admin
+ADMIN_PASSWORD=Admin123!
+
+# SSL_KEY_PATH=C:/Certbot/live/example.com/privkey.pem
+# SSL_CERT_PATH=C:/Certbot/live/example.com/fullchain.pem
 ```
 
-- `PORT` - порт HTTPS API сервера.
-- `DB_FILE` - путь к SQLite базе данных.
-- `JWT_SECRET` - секрет для подписи JWT токенов авторизации.
+- `PORT` - порт HTTPS API.
+- `DB_FILE` - путь к SQLite базе.
+- `JWT_SECRET` - секрет подписи JWT.
+- `ADMIN_USERNAME` / `ADMIN_PASSWORD` - админская учетная запись.
+- `SSL_KEY_PATH` / `SSL_CERT_PATH` - пути к ключу и сертификату, если используется Let's Encrypt или другой доверенный сертификат.
 
 ### `client/.env`
 
 ```env
-VITE_API_URL=https://localhost:3001
+VITE_API_URL=https://10.21.3.86:3001
+VITE_API_HOST=10.21.3.86
+
+# SSL_KEY_PATH=C:/Certbot/live/example.com/privkey.pem
+# SSL_CERT_PATH=C:/Certbot/live/example.com/fullchain.pem
 ```
 
 - `VITE_API_URL` - адрес backend API.
-- `VITE_SOCKET_URL` - необязательный адрес Socket.IO для текстового чата. Если не задан, используется `VITE_API_URL`.
-- `VITE_VOICE_URL` - необязательный адрес Socket.IO для голосовых каналов. Если не задан, используется `https://localhost:3001`.
+- `VITE_API_HOST` - IP backend-хоста для fallback-логики.
+- `SSL_KEY_PATH` / `SSL_CERT_PATH` - пути к сертификату для Vite dev server.
 
-После изменения `.env` файлов перезапустите соответствующий процесс.
+После изменения `.env` нужно перезапустить соответствующий процесс.
 
-## Скрипты
+## HTTPS И Сертификаты
 
-### Клиент
+В проекте есть локальные self-signed сертификаты:
 
-Файл: `client/package.json`
+- `client/cert.pem`
+- `client/key.pem`
+- `server/cert.pem`
+- `server/key.pem`
 
-- `npm run dev` - запускает Vite dev server.
-- `npm run build` - собирает production-версию клиента.
-- `npm run preview` - запускает preview production-сборки.
-- `npm run lint` - запускает ESLint.
+Из-за них браузер может показывать предупреждение безопасности. Для приватного LAN-IP `10.21.3.86` публичный Let's Encrypt сертификат получить нельзя. Let's Encrypt подходит для публичного домена или валидируемого публичного IP.
 
-### Сервер
+Если у вас есть публичный домен или публичный IP и выпущенный сертификат, укажите:
 
-Файл: `server/package.json`
+```env
+SSL_KEY_PATH=C:/Certbot/live/example.com/privkey.pem
+SSL_CERT_PATH=C:/Certbot/live/example.com/fullchain.pem
+```
 
-- `npm start` - запускает сервер командой `node index.js`.
-- `npm run dev` - запускает сервер через `nodemon`, если он установлен.
+Для локальной сети без предупреждения браузера используйте локальный доверенный CA, например `mkcert`, и установите корневой сертификат на все устройства.
+
+## Основной Функционал
+
+- Авторизация и регистрация через JWT.
+- Автоматическое создание администратора.
+- Текстовые каналы и сообщения.
+- Сортировка сообщений по `created_at`.
+- Группировка сообщений по дням: `Сегодня`, `Вчера`, дата пользователя.
+- Отображение времени и полной даты отправки сообщения.
+- Голосовые каналы через WebRTC и Socket.IO signaling.
+- Список участников голосового канала.
+- Реальное включение/отключение микрофона.
+- Синхронизация статуса микрофона в интерфейсе и списке участников.
+- Пользовательские аватары.
+- Статусы пользователей: `online`, `offline`.
+- Админское удаление пользователей.
+- Права удаления каналов по владельцу.
+
+## Аватары
+
+Аватары загружаются через:
+
+```http
+POST /users/me/avatar
+```
+
+Файлы сохраняются в:
+
+```text
+server/uploads/avatars
+```
+
+Ограничения:
+
+- максимум `2 МБ`;
+- форматы `JPG`, `PNG`, `WEBP`;
+- изображение приводится к `128x128`;
+- сохраняется обработанная `.webp` версия;
+- старый аватар пользователя удаляется при повторной загрузке;
+- реальные загруженные файлы игнорируются Git, в репозитории хранится только `.gitkeep`.
+
+## Форматы Данных
+
+Пользователь:
+
+```js
+{
+  id,
+  username,
+  avatar_url,
+  status: "online" | "offline",
+  mic_muted: boolean,
+  is_admin: boolean,
+  last_seen,
+  created_at
+}
+```
+
+Канал:
+
+```js
+{
+  id,
+  name,
+  type: "text" | "voice",
+  owner_username,
+  created_at
+}
+```
+
+Сообщение:
+
+```js
+{
+  id,
+  channel_id,
+  user,
+  text,
+  time,
+  created_at
+}
+```
+
+`created_at` хранится в надежном формате даты/времени и используется для сортировки и группировки сообщений.
+
+## API
+
+Публичные маршруты:
+
+- `GET /` - проверка сервера.
+- `POST /auth/register` - регистрация.
+- `POST /auth/login` - вход.
+
+Защищенные маршруты требуют:
+
+```http
+Authorization: Bearer <token>
+```
+
+Маршруты:
+
+- `GET /channels`
+- `POST /channels`
+- `DELETE /channels/:id`
+- `GET /messages`
+- `GET /messages/:channelId`
+- `POST /messages/:channelId`
+- `GET /users`
+- `GET /users/me`
+- `PATCH /users/me/presence`
+- `POST /users/me/avatar`
+- `DELETE /users/:username` - только админ.
+
+## Socket.IO
+
+Текстовый чат:
+
+- `message:new` - новое сообщение.
+- `user:updated` - обновление пользователя.
+- `user:deleted` - удаление пользователя.
+
+Голосовые каналы:
+
+- `join-channel`
+- `leave-channel`
+- `existing-peers`
+- `members-update`
+- `signal:offer`
+- `signal:answer`
+- `signal:ice`
 
 ## Структура Проекта
 
 ```text
 .
 |-- client
-|   |-- public
 |   |-- src
-|   |   |-- assets
 |   |   |-- components
+|   |   |   |-- ChannelGroup.jsx
+|   |   |   |-- ChannelList.jsx
+|   |   |   |-- ChatPanel.jsx
+|   |   |   |-- MembersPanel.jsx
+|   |   |   |-- UserAvatar.jsx
+|   |   |   |-- UserControls.jsx
+|   |   |   `-- VoiceChannelAuto.jsx
 |   |   |-- hooks
 |   |   |-- utils
 |   |   |-- api.js
@@ -164,353 +308,68 @@ VITE_API_URL=https://localhost:3001
 |   |-- .env
 |   |-- cert.pem
 |   |-- key.pem
-|   |-- package.json
 |   `-- vite.config.js
 |-- server
 |   |-- db
 |   |-- middleware
 |   |-- routes
+|   |   |-- auth.js
+|   |   |-- channels.js
+|   |   |-- messages.js
+|   |   |-- users.js
+|   |   `-- voice.js
+|   |-- uploads
+|   |   `-- avatars
 |   |-- .env
 |   |-- cert.pem
 |   |-- key.pem
 |   |-- db.js
-|   |-- index.js
-|   `-- package.json
+|   `-- index.js
 |-- .gitignore
 `-- README.md
 ```
 
-## Клиент: За Что Отвечают Файлы
-
-### `client/index.html`
-
-HTML-точка входа Vite. Содержит `<div id="root"></div>`, в который React монтирует приложение.
-
-### `client/vite.config.js`
-
-Конфигурация Vite:
-
-- включает React plugin;
-- запускает dev server на `https://localhost:3000`;
-- использует `client/key.pem` и `client/cert.pem`;
-- разрешает хосты `localhost` и `127.0.0.1`.
-
-### `client/src/main.jsx`
-
-Главная точка входа React:
-
-- создает React root;
-- подключает `AuthProvider`;
-- настраивает `BrowserRouter`;
-- описывает маршруты `/`, `/login` и fallback;
-- защищает основное приложение через `ProtectedRoute`.
-
-### `client/src/App.jsx`
-
-Главный экран после входа:
-
-- хранит выбранный канал;
-- подключает список каналов, чат, участников и модальные окна;
-- создает Socket.IO подключение для новых сообщений;
-- отправляет сообщения через API;
-- подключает голосовой компонент для voice-каналов.
-
-### `client/src/AuthContext.jsx`
-
-Контекст авторизации:
-
-- хранит текущего пользователя;
-- читает `token` и `username` из `localStorage`;
-- выполняет login/register через `/auth/login` и `/auth/register`;
-- сохраняет JWT токен;
-- выполняет logout.
-
-### `client/src/LoginPage.jsx`
-
-Страница входа и регистрации:
-
-- переключает режим входа/регистрации;
-- отправляет форму;
-- после успешного входа переводит пользователя на `/`.
-
-### `client/src/api.js`
-
-Обертка над HTTP API сервера:
-
-- добавляет `Authorization: Bearer <token>`;
-- загружает, создает и удаляет каналы;
-- загружает и отправляет сообщения;
-- загружает список пользователей.
-
-### `client/src/hooks/useChannels.js`
-
-Хук состояния каналов:
-
-- загружает каналы и сообщения при старте;
-- группирует каналы на `text` и `voice`;
-- выбирает первый доступный канал;
-- добавляет и удаляет каналы через API.
-
-### `client/src/components/ChannelList.jsx`
-
-Левая панель приложения:
-
-- показывает группы текстовых и голосовых каналов;
-- подключает блок управления пользователем снизу.
-
-### `client/src/components/ChannelGroup.jsx`
-
-Группа каналов одного типа:
-
-- рисует список каналов;
-- переключает активный текстовый канал;
-- показывает mini-profile для голосового канала;
-- открывает модальное окно создания или удаления канала.
-
-### `client/src/components/ChannelModal.jsx`
-
-Модальное окно:
-
-- создает новый канал;
-- подтверждает удаление канала;
-- закрывается по `Esc` или клику вне окна.
-
-### `client/src/components/ChatPanel.jsx`
-
-Центральная область чата:
-
-- показывает сообщения выбранного текстового канала;
-- отправляет сообщение по Enter;
-- поддерживает textarea и кнопку отправки;
-- прокручивает чат вниз при новых сообщениях;
-- для голосового канала показывает информационное состояние вместо поля ввода.
-
-### `client/src/components/MembersPanel.jsx`
-
-Правая панель участников:
-
-- загружает пользователей через `/users`;
-- показывает текущего пользователя;
-- отображает статус и состояние микрофона;
-- для voice-канала учитывает участников, находящихся в канале.
-
-### `client/src/components/UserControls.jsx`
-
-Нижний блок пользователя:
-
-- показывает имя текущего пользователя;
-- переключает статус `online`, `idle`, `dnd`, `offline`;
-- переключает mute микрофона;
-- открывает меню настроек;
-- выполняет logout.
-
-### `client/src/components/VoiceChannelAuto.jsx`
-
-Голосовое подключение:
-
-- запрашивает доступ к микрофону через `navigator.mediaDevices.getUserMedia`;
-- подключается к Socket.IO серверу;
-- входит в выбранный voice-канал;
-- обменивается WebRTC offer/answer/ice сигналами;
-- создает `RTCPeerConnection` для участников;
-- воспроизводит входящие audio-потоки через скрытые `<audio>` элементы;
-- очищает соединения и audio-треки при выходе.
-
-### `client/src/utils/helpers.js`
-
-Вспомогательные функции:
-
-- форматирование статусов;
-- CSS-классы для статусов;
-- текущее время в формате `HH:MM`.
-
-### `client/src/index.css`
-
-Основные стили приложения:
-
-- сетка интерфейса;
-- панели каналов, чата и участников;
-- модальные окна;
-- сообщения;
-- статусы пользователей;
-- страница авторизации.
-
-## Сервер: За Что Отвечают Файлы
-
-### `server/index.js`
-
-Главная точка входа backend:
-
-- создает Express-приложение;
-- подключает CORS и JSON body parser;
-- подключает роуты `/auth`, `/channels`, `/users`, `/messages`;
-- защищает часть роутов через JWT middleware;
-- создает HTTPS сервер на `server/key.pem` и `server/cert.pem`;
-- подключает Socket.IO;
-- регистрирует голосовую Socket.IO логику;
-- запускает сервер на `PORT`.
-
-### `server/db.js`
-
-Слой работы с SQLite:
-
-- открывает базу `DB_FILE`;
-- создает таблицы `users`, `channels`, `messages`, если их нет;
-- содержит методы для каналов, сообщений и пользователей.
-
-### `server/db/data.sqlite`
-
-Файл SQLite базы данных. В нем хранятся:
-
-- пользователи;
-- каналы;
-- сообщения.
-
-### `server/db/init.sql`
-
-SQL-схема для таблиц каналов и сообщений. Сейчас основное создание таблиц также продублировано в `server/db.js`.
-
-### `server/middleware/authMiddleware.js`
-
-JWT middleware:
-
-- читает заголовок `Authorization`;
-- проверяет Bearer token;
-- кладет decoded payload в `req.user`;
-- возвращает `401`, если токен отсутствует или неверный.
-
-### `server/routes/auth.js`
-
-Маршруты авторизации:
-
-- `POST /auth/register` - создает пользователя, хеширует пароль через `bcrypt`, возвращает JWT;
-- `POST /auth/login` - проверяет пользователя и пароль, возвращает JWT.
-
-### `server/routes/channels.js`
-
-Маршруты каналов:
-
-- `GET /channels` - возвращает список каналов;
-- `POST /channels` - создает канал типа `text` или `voice`;
-- `DELETE /channels/:id` - удаляет канал.
-
-Маршрут подключен через `authMiddleware`, поэтому требует JWT токен.
-
-### `server/routes/messages.js`
-
-Маршруты сообщений:
-
-- `GET /messages` - возвращает сообщения, сгруппированные по каналам;
-- `POST /messages/:channelId` - сохраняет сообщение и рассылает событие `message:new` через Socket.IO.
-
-Маршрут подключен через `authMiddleware`, поэтому требует JWT токен.
-
-### `server/routes/users.js`
-
-Маршрут пользователей:
-
-- `GET /users` - возвращает список зарегистрированных пользователей без паролей.
-
-Маршрут подключен через `authMiddleware`, поэтому требует JWT токен.
-
-### `server/routes/voice.js`
-
-Socket.IO логика голосовых каналов:
-
-- хранит участников voice-каналов в памяти процесса;
-- обрабатывает `join-channel` и `leave-channel`;
-- отправляет список существующих участников;
-- рассылает `members-update`;
-- прокидывает WebRTC-сигналы `signal:offer`, `signal:answer`, `signal:ice`;
-- удаляет пользователя из каналов при disconnect.
-
-## API
-
-### Публичные маршруты
-
-- `GET /` - проверка сервера, возвращает `OK`.
-- `POST /auth/register` - регистрация.
-- `POST /auth/login` - вход.
-
-### Защищенные маршруты
-
-Для этих маршрутов нужен заголовок:
-
-```http
-Authorization: Bearer <token>
-```
-
-- `GET /channels`
-- `POST /channels`
-- `DELETE /channels/:id`
-- `GET /messages`
-- `POST /messages/:channelId`
-- `GET /users`
-
-## Socket.IO События
-
-### Текстовый чат
-
-- `message:new` - сервер отправляет новое сообщение всем подключенным клиентам.
-
-### Голосовые каналы
-
-- `join-channel` - клиент входит в voice-канал.
-- `leave-channel` - клиент выходит из voice-канала.
-- `existing-peers` - сервер отправляет новому клиенту список уже подключенных участников.
-- `members-update` - сервер рассылает актуальный список участников.
-- `signal:offer` - WebRTC offer.
-- `signal:answer` - WebRTC answer.
-- `signal:ice` - WebRTC ICE candidate.
-
-## Возможные Проблемы
-
-### `Access is denied` при запуске через PowerShell
-
-На Windows PowerShell может блокировать `npm.ps1`. Используйте `npm.cmd`:
+## Назначение Основных Файлов
+
+- `client/src/App.jsx` - главный экран, состояние пользователей, каналов, сообщений и socket-подключений.
+- `client/src/AuthContext.jsx` - авторизация, хранение JWT и текущего пользователя.
+- `client/src/LoginPage.jsx` - страница входа и регистрации.
+- `client/src/api.js` - HTTP API wrapper.
+- `client/src/components/ChannelGroup.jsx` - список каналов, подключение к голосу, права на удаление каналов.
+- `client/src/components/ChatPanel.jsx` - сообщения, сортировка, группировка по датам.
+- `client/src/components/MembersPanel.jsx` - участники, статусы, микрофоны, удаление пользователей админом.
+- `client/src/components/UserControls.jsx` - нижняя панель пользователя, аватар, микрофон, выход.
+- `client/src/components/VoiceChannelAuto.jsx` - WebRTC голосовое подключение.
+- `server/index.js` - HTTPS Express server и Socket.IO.
+- `server/db.js` - SQLite схема, миграции и методы работы с данными.
+- `server/routes/auth.js` - вход и регистрация.
+- `server/routes/channels.js` - каналы и права удаления.
+- `server/routes/messages.js` - сообщения.
+- `server/routes/users.js` - пользователи, аватары, админское удаление.
+- `server/routes/voice.js` - Socket.IO signaling для голосовых каналов.
+
+## Полезные Команды
+
+Проверка клиента:
 
 ```powershell
-npm.cmd install
-npm.cmd run dev
+cd client
+npm run lint
+npm run build
 ```
 
-### `better-sqlite3.node is not a valid Win32 application`
+Проверка серверного синтаксиса:
 
-Обычно это означает, что native-бинарник был установлен под другую версию Node.js или платформу. Переустановите зависимости под Node.js 22:
-
-```bash
+```powershell
 cd server
-npm rebuild better-sqlite3 sqlite3
+C:\Users\Admin\tools\node-v22.22.3-win-x64\node.exe --check index.js
+C:\Users\Admin\tools\node-v22.22.3-win-x64\node.exe --check db.js
 ```
 
-Если не помогло:
-
-```bash
-rm -rf node_modules package-lock.json
-npm install
-```
-
-На Windows вместо `rm -rf` используйте удаление папки через Проводник или PowerShell:
+Остановка процессов на портах `3000` и `3001`:
 
 ```powershell
-Remove-Item node_modules -Recurse -Force
-Remove-Item package-lock.json -Force
-npm install
+Get-NetTCPConnection -State Listen |
+  Where-Object { $_.LocalPort -in 3000,3001 } |
+  ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 ```
-
-### Браузер не дает доступ к микрофону
-
-Проверьте:
-
-- страница открыта по `https://localhost:3000`;
-- в браузере разрешен доступ к микрофону;
-- сертификат принят в браузере;
-- сервер `https://localhost:3001` запущен.
-
-### Порт уже занят
-
-Если заняты порты `3000` или `3001`, остановите старые процессы или измените порты в:
-
-- `client/vite.config.js`
-- `server/.env`
-- `client/.env`

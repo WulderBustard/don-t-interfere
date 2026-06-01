@@ -2,7 +2,7 @@ import React, { useState, useContext, useCallback, useEffect, useRef } from "rea
 import { io } from "socket.io-client";
 import "./index.css";
 import { useChannels } from "./hooks/useChannels";
-import { API_BASE, fetchUsers, sendMessageApi, updatePresence } from "./api";
+import { API_BASE, deleteUserApi, fetchUsers, sendMessageApi, updatePresence } from "./api";
 import { AuthContext } from "./AuthContext";
 import ChannelList from "./components/ChannelList";
 import ChatPanel from "./components/ChatPanel";
@@ -150,6 +150,9 @@ export default function App() {
     });
 
     socket.on("user:updated", handleUserUpdated);
+    socket.on("user:deleted", ({ username }) => {
+      setUsers((prev) => prev.filter((item) => item.username !== username));
+    });
 
     return () => {
       socket.disconnect();
@@ -225,6 +228,14 @@ export default function App() {
     [modal, addChannel, deleteChannel, closeModal]
   );
 
+  const handleDeleteUser = useCallback(async (username) => {
+    if (!user?.is_admin || username === user.username) return;
+    if (!window.confirm(`Удалить пользователя ${username}?`)) return;
+
+    await deleteUserApi(username);
+    setUsers((prev) => prev.filter((item) => item.username !== username));
+  }, [user]);
+
   return (
     <div className={`app-grid ${isMembersOpen ? "members-open" : ""}`}>
       <ChannelList
@@ -264,6 +275,7 @@ export default function App() {
           voiceMembers={voiceMembersByChannel[current.id] || []}
           selfStatus={selfStatus}
           selfMicMuted={isMicMuted}
+          onDeleteUser={handleDeleteUser}
         />
       )}
 

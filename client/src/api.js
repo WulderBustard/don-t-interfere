@@ -123,3 +123,14 @@ export async function uploadAvatar(file) {
   if (!res.ok) throw new Error(data.error || "Failed to upload avatar");
   return data;
 }
+
+export async function deleteUserApi(username) {
+  const res = await fetch(`${API_BASE}/users/${encodeURIComponent(username)}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to delete user");
+  return data;
+}

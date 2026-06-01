@@ -30,6 +30,20 @@ function getLanHost() {
   return "127.0.0.1";
 }
 
+function resolveCertificatePath(value, fallback) {
+  return path.resolve(__dirname, value || fallback);
+}
+
+function loadHttpsOptions() {
+  const keyPath = resolveCertificatePath(process.env.SSL_KEY_PATH, "key.pem");
+  const certPath = resolveCertificatePath(process.env.SSL_CERT_PATH, "cert.pem");
+
+  return {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath),
+  };
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 const HOST = getLanHost();
@@ -51,12 +65,7 @@ app.use("/auth", authRouter);
 app.use("/channels", authMiddleware, channelsRouter);
 app.get("/", (req, res) => res.send("OK"));
 
-const options = {
-  key: fs.readFileSync("key.pem"),
-  cert: fs.readFileSync("cert.pem"),
-};
-
-const server = https.createServer(options, app);
+const server = https.createServer(loadHttpsOptions(), app);
 
 const io = new Server(server, {
   cors: { origin: "*" },

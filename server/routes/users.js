@@ -27,6 +27,7 @@ function publicUser(user) {
   return {
     ...user,
     mic_muted: Boolean(user.mic_muted),
+    is_admin: Boolean(user.is_admin),
   };
 }
 
@@ -99,6 +100,25 @@ module.exports = function createUsersRouter(io) {
       console.error(err);
       res.status(400).json({ error: "Не удалось обработать изображение" });
     }
+  });
+
+  router.delete("/:username", (req, res) => {
+    const admin = db.getPublicUser(req.user.username);
+    if (!admin?.is_admin) return res.status(403).json({ error: "Только администратор может удалять пользователей" });
+
+    const username = req.params.username;
+    if (username === req.user.username) return res.status(400).json({ error: "Нельзя удалить текущего администратора" });
+
+    const user = db.getPublicUser(username);
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    if (user.is_admin) return res.status(400).json({ error: "Нельзя удалить администратора" });
+
+    removeOldAvatar(username);
+    const deleted = db.deleteUser(username);
+    if (!deleted) return res.status(404).json({ error: "Пользователь не найден" });
+
+    if (io) io.emit("user:deleted", { username });
+    res.json({ ok: true, user: publicUser(deleted) });
   });
 
   router.use((err, req, res, next) => {

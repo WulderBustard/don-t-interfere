@@ -1,9 +1,12 @@
 const Database = require("better-sqlite3");
+const bcrypt = require("bcrypt");
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
 
 const DB_FILE = process.env.DB_FILE || path.join(__dirname, "db", "data.sqlite");
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "Admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin123!";
 
 const dir = path.dirname(DB_FILE);
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -24,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_url TEXT,
   status TEXT NOT NULL DEFAULT 'offline',
   mic_muted INTEGER NOT NULL DEFAULT 0,
+  is_admin INTEGER NOT NULL DEFAULT 0,
   last_seen TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -32,6 +36,7 @@ CREATE TABLE IF NOT EXISTS channels (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
   type TEXT NOT NULL CHECK(type IN ('text','voice')),
+  owner_username TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -49,10 +54,22 @@ CREATE TABLE IF NOT EXISTS messages (
 ensureColumn("users", "avatar_url", "TEXT");
 ensureColumn("users", "status", "TEXT NOT NULL DEFAULT 'offline'");
 ensureColumn("users", "mic_muted", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("users", "is_admin", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("users", "last_seen", "TEXT");
+ensureColumn("channels", "owner_username", "TEXT");
 ensureColumn("messages", "created_at", "TEXT");
 
 db.prepare("UPDATE users SET status = 'online' WHERE status = 'idle'").run();
+
+const adminPasswordHash = bcrypt.hashSync(ADMIN_PASSWORD, 10);
+const existingAdmin = db.prepare("SELECT id FROM users WHERE username = ?").get(ADMIN_USERNAME);
+if (existingAdmin) {
+  db.prepare("UPDATE users SET password = ?, is_admin = 1 WHERE username = ?").run(adminPasswordHash, ADMIN_USERNAME);
+} else {
+  db.prepare(
+    "INSERT INTO users (username, password, status, mic_muted, is_admin, last_seen) VALUES (?, ?, 'offline', 0, 1, ?)"
+  ).run(ADMIN_USERNAME, adminPasswordHash, new Date().toISOString());
+}
 
 db.prepare(`
   UPDATE messages
@@ -76,14 +93,19 @@ db.prepare(`
 
 module.exports = {
   getAllChannels() {
-    const stmt = db.prepare("SELECT id, name, type, created_at FROM channels ORDER BY id");
+    const stmt = db.prepare("SELECT id, name, type, owner_username, created_at FROM channels ORDER BY id");
     return stmt.all();
   },
 
-  createChannel(name, type) {
-    const insert = db.prepare("INSERT INTO channels (name, type) VALUES (?, ?)");
-    const info = insert.run(name, type);
-    return { id: info.lastInsertRowid, name, type };
+  getChannel(id) {
+    const stmt = db.prepare("SELECT id, name, type, owner_username, created_at FROM channels WHERE id = ?");
+    return stmt.get(id);
+  },
+
+  createChannel(name, type, ownerUsername) {
+    const insert = db.prepare("INSERT INTO channels (name, type, owner_username) VALUES (?, ?, ?)");
+    const info = insert.run(name, type, ownerUsername);
+    return { id: info.lastInsertRowid, name, type, owner_username: ownerUsername };
   },
 
   deleteChannel(id) {
@@ -114,7 +136,7 @@ module.exports = {
 
   getAllUsers() {
     const stmt = db.prepare(
-      "SELECT id, username, avatar_url, status, mic_muted, last_seen, created_at FROM users ORDER BY username ASC"
+      "SELECT id, username, avatar_url, status, mic_muted, is_admin, last_seen, created_at FROM users ORDER BY is_admin DESC, username ASC"
     );
     return stmt.all();
   },
@@ -125,14 +147,26 @@ module.exports = {
     );
     const now = new Date().toISOString();
     const info = stmt.run(username, passwordHash, now);
-    return { id: info.lastInsertRowid, username, avatar_url: null, status: "online", mic_muted: 0, last_seen: now };
+    return { id: info.lastInsertRowid, username, avatar_url: null, status: "online", mic_muted: 0, is_admin: 0, last_seen: now };
   },
 
   getPublicUser(username) {
     const stmt = db.prepare(
-      "SELECT id, username, avatar_url, status, mic_muted, last_seen, created_at FROM users WHERE username = ?"
+      "SELECT id, username, avatar_url, status, mic_muted, is_admin, last_seen, created_at FROM users WHERE username = ?"
     );
     return stmt.get(username);
+  },
+
+  deleteUser(username) {
+    const user = this.getPublicUser(username);
+    if (!user || user.is_admin) return null;
+
+    db.prepare("DELETE FROM users WHERE username = ? AND is_admin = 0").run(username);
+    return user;
+  },
+
+  deleteNonAdminUsers() {
+    return db.prepare("DELETE FROM users WHERE is_admin = 0").run().changes;
   },
 
   updateUserPresence(username, { status, micMuted }) {

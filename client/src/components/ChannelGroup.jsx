@@ -3,7 +3,15 @@ import { AuthContext } from "../AuthContext";
 import VoiceChannelAuto from "./VoiceChannelAuto";
 import UserAvatar from "./UserAvatar";
 
-const ChannelItem = memo(function ChannelItem({ id, name, type, active, onClick, onDelete }) {
+function canDeleteChannel(channel, user) {
+  if (!channel || !user) return false;
+  if (user.is_admin) return true;
+  if (channel.name?.trim().toLowerCase() === "main") return false;
+  return channel.owner_username === user.username;
+}
+
+const ChannelItem = memo(function ChannelItem({ channel, type, active, onClick, onDelete, canDelete }) {
+  const { id, name } = channel;
   const icon = type === "text" ? "#" : "🔊";
 
   const handleClick = useCallback(() => {
@@ -27,13 +35,15 @@ const ChannelItem = memo(function ChannelItem({ id, name, type, active, onClick,
       tabIndex={0}
     >
       <span>{icon} {name}</span>
-      <button
-        className="delete-btn"
-        title="Удалить канал"
-        onClick={handleDelete}
-      >
-        🗑️
-      </button>
+      {canDelete && (
+        <button
+          className="delete-btn"
+          title="Удалить канал"
+          onClick={handleDelete}
+        >
+          🗑️
+        </button>
+      )}
     </div>
   );
 });
@@ -63,7 +73,7 @@ export default function ChannelGroup({
       if (!ch) return;
 
       if (type === "text") {
-        onSwitch({ id: ch.id, name: ch.name, type });
+        onSwitch({ id: ch.id, name: ch.name, type, owner_username: ch.owner_username });
         setActiveVoiceProfile(null);
         onVoiceMembers?.(ch.id, []);
         return;
@@ -127,12 +137,12 @@ export default function ChannelGroup({
         list.map((ch) => (
           <React.Fragment key={ch.id}>
             <ChannelItem
-              id={ch.id}
-              name={ch.name}
+              channel={ch}
               type={type}
               active={current?.id === ch.id && current?.type === type}
               onClick={handleSwitch}
               onDelete={handleDelete}
+              canDelete={canDeleteChannel(ch, user)}
             />
 
             {type === "voice" && activeVoiceProfile?.channelId === ch.id && (

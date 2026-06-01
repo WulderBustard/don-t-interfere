@@ -23,7 +23,13 @@ function getLanHost() {
   return "127.0.0.1";
 }
 
+function resolveCertificatePath(value, fallback) {
+  return path.resolve(__dirname, value || fallback);
+}
+
 const HOST = getLanHost();
+const keyPath = resolveCertificatePath(process.env.SSL_KEY_PATH, "key.pem");
+const certPath = resolveCertificatePath(process.env.SSL_CERT_PATH, "cert.pem");
 
 export default defineConfig({
   plugins: [react()],
@@ -32,8 +38,8 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     https: {
-      key: fs.readFileSync(path.resolve(__dirname, "key.pem")),
-      cert: fs.readFileSync(path.resolve(__dirname, "cert.pem")),
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
     },
     allowedHosts: [HOST],
   },

@@ -2,13 +2,13 @@ import React, { useMemo, useContext } from "react";
 import { AuthContext } from "../AuthContext";
 import UserAvatar from "./UserAvatar";
 
-function MemberItem({ user, status, micMuted, isSelf = false }) {
+function MemberItem({ user, status, micMuted, isSelf = false, canDelete = false, onDelete }) {
   return (
     <div className={`member ${isSelf ? "self" : ""}`}>
       <UserAvatar user={user} status={status} size="sm" />
 
       <span className="member-name">
-        {user.username} {isSelf ? "(Вы)" : ""}
+        {user.username} {isSelf ? "(Вы)" : ""} {user.is_admin ? "Admin" : ""}
       </span>
 
       <span
@@ -17,6 +17,17 @@ function MemberItem({ user, status, micMuted, isSelf = false }) {
       >
         {micMuted ? "🔇" : "🎤"}
       </span>
+
+      {canDelete && (
+        <button
+          type="button"
+          className="member-delete"
+          onClick={() => onDelete(user.username)}
+          title="Удалить пользователя"
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 }
@@ -25,11 +36,14 @@ export default function MembersPanel({
   users = [],
   selfStatus,
   selfMicMuted = false,
+  onDeleteUser,
 }) {
   const { user } = useContext(AuthContext);
 
   const sortedUsers = useMemo(() => {
     return [...users].sort((a, b) => {
+      if (a.is_admin !== b.is_admin) return a.is_admin ? -1 : 1;
+
       const statusWeight = { online: 0, offline: 1 };
       const aWeight = statusWeight[a.status] ?? 2;
       const bWeight = statusWeight[b.status] ?? 2;
@@ -49,6 +63,7 @@ export default function MembersPanel({
           const isSelf = item.username === user?.username;
           const status = isSelf ? selfStatus : item.status || "offline";
           const micMuted = isSelf ? selfMicMuted : Boolean(item.mic_muted);
+          const canDelete = Boolean(user?.is_admin && !isSelf && !item.is_admin);
 
           return (
             <MemberItem
@@ -57,6 +72,8 @@ export default function MembersPanel({
               status={status}
               micMuted={micMuted}
               isSelf={isSelf}
+              canDelete={canDelete}
+              onDelete={onDeleteUser}
             />
           );
         })
