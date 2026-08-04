@@ -3,7 +3,6 @@ const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
-require("dotenv").config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "secret_key";
 

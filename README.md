@@ -1,375 +1,192 @@
 # don-t-interfere
 
-Веб-приложение в стиле Discord: регистрация и вход, текстовые и голосовые каналы, сообщения в реальном времени, аватары, статусы пользователей, участники канала и админское управление пользователями.
+Веб-приложение в стиле Discord с текстовыми и голосовыми каналами, сообщениями в реальном времени, аватарами, статусами пользователей и администраторским управлением.
 
-Проект состоит из двух частей:
-
-- `client` - React/Vite клиент.
-- `server` - Node.js/Express HTTPS API, Socket.IO, WebRTC signaling и SQLite.
+- `client` — React/Vite.
+- `server` — Node.js/Express, HTTPS, Socket.IO, WebRTC signaling и SQLite.
 
 ## Требования
 
-- Node.js `v22.x`.
+- Node.js 22 или 24. Node.js 25+ не поддерживается нативной зависимостью `better-sqlite3`.
 - npm.
-- Браузер с поддержкой HTTPS, WebRTC и доступа к микрофону.
-- Для Windows при пересборке native-зависимостей может понадобиться Visual Studio Build Tools C++.
+- OpenSSL для автоматического создания локального HTTPS-сертификата.
+- Python 3 с `pip`, C/C++ compiler и `make` могут понадобиться для пересборки нативных npm-зависимостей.
+- Браузер с HTTPS, WebRTC и доступом к микрофону.
 
-В текущей локальной настройке приложение работает только по IP компьютера:
+Arch Linux:
+
+```bash
+sudo pacman -S --needed base-devel python-pip
+```
+
+Debian/Ubuntu:
+
+```bash
+sudo apt install build-essential python3 python3-pip
+```
+
+## Быстрый запуск
+
+```bash
+git clone https://github.com/WulderBustard/don-t-interfere.git
+cd don-t-interfere
+
+cp server/.env.example server/.env
+cp client/.env.example client/.env
+
+npm run setup
+npm run build
+npm start
+```
+
+`npm run setup` устанавливает зависимости и при отсутствии сертификатов создаёт self-signed сертификат для текущего LAN-IP. Для явного адреса используйте `HOST=10.21.3.44 npm run cert:dev`.
+
+После сборки Express отдаёт и API, и готовый React-клиент одним процессом:
 
 ```text
-https://10.21.3.86:3000
+https://<IP-сервера>:3001
 ```
 
-`localhost` и доменные имена отключены на уровне привязки сервера/клиента.
+Проверка состояния:
 
-## Быстрый Запуск
-
-Запустите сервер в первом терминале:
-
-```powershell
-cd C:\Users\Admin\Documents\don-t-interfere\server
-C:\Users\Admin\tools\node-v22.22.3-win-x64\node.exe index.js
+```bash
+curl -k https://<IP-сервера>:3001/health
 ```
 
-Запустите клиент во втором терминале:
+Ожидаемый ответ: `OK`.
 
-```powershell
-cd C:\Users\Admin\Documents\don-t-interfere\client
-C:\Users\Admin\tools\node-v22.22.3-win-x64\node.exe .\node_modules\vite\bin\vite.js --force
+## Режим разработки
+
+Одна команда запускает backend и Vite одновременно:
+
+```bash
+npm run dev
 ```
 
-Откройте:
+- клиент: `https://<IP-сервера>:3000`;
+- API и Socket.IO: `https://<IP-сервера>:3001`.
 
-```text
-https://10.21.3.86:3000
+Остановить оба процесса можно сочетанием `Ctrl+C`.
+
+## systemd на Linux
+
+В `deploy/dont-interfere.service` находится unit для пользователя `admin` и каталога `/home/admin/projects/don-t-interfere`. Если путь отличается, измените `User`, `WorkingDirectory`, `ExecStart` и `ReadWritePaths`.
+
+```bash
+sudo install -m 0644 deploy/dont-interfere.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now dont-interfere.service
 ```
 
-Проверка API:
+Управление и логи:
 
-```powershell
-curl.exe -k https://10.21.3.86:3001/
+```bash
+sudo systemctl status dont-interfere.service
+sudo systemctl restart dont-interfere.service
+journalctl -u dont-interfere.service -f
 ```
 
-Ожидаемый ответ:
+## Команды из корня проекта
 
-```text
-OK
+```bash
+npm run setup   # установить зависимости клиента и сервера по lock-файлам
+npm run cert:dev # создать локальный HTTPS-сертификат, если его ещё нет
+npm run dev     # запустить клиент и сервер для разработки
+npm run build   # собрать production-клиент
+npm start       # запустить Express с собранным клиентом
+npm run lint    # проверить клиент ESLint
+npm run check   # lint, build и проверка синтаксиса backend
 ```
 
-## Установка Зависимостей
+## Переменные окружения
 
-Сервер:
-
-```powershell
-cd server
-npm install
-```
-
-Клиент:
-
-```powershell
-cd client
-npm install
-```
-
-## Администратор
-
-При запуске сервер автоматически создает или обновляет админскую учетную запись:
-
-```text
-Логин: Admin
-Пароль: Admin123!
-```
-
-Пароль можно изменить через переменные окружения сервера:
-
-```env
-ADMIN_USERNAME=Admin
-ADMIN_PASSWORD=Admin123!
-```
-
-Возможности администратора:
-
-- удаление обычных пользователей из панели участников;
-- удаление любых каналов;
-- удаление канала `main` / `Main`.
-
-Обычный пользователь может удалить только канал, который создал сам. Канал `main` обычный пользователь удалить не может.
-
-## Переменные Окружения
+Создайте рабочие файлы из примеров. Файлы `.env` не должны попадать в Git.
 
 ### `server/.env`
 
 ```env
 PORT=3001
 DB_FILE=./db/data.sqlite
-JWT_SECRET=wdawjgawd;k
+JWT_SECRET=replace-with-a-long-random-value
 ADMIN_USERNAME=Admin
-ADMIN_PASSWORD=Admin123!
+ADMIN_PASSWORD=replace-with-a-strong-password
 
-# SSL_KEY_PATH=C:/Certbot/live/example.com/privkey.pem
-# SSL_CERT_PATH=C:/Certbot/live/example.com/fullchain.pem
+# SSL_KEY_PATH=/etc/letsencrypt/live/example.com/privkey.pem
+# SSL_CERT_PATH=/etc/letsencrypt/live/example.com/fullchain.pem
 ```
 
-- `PORT` - порт HTTPS API.
-- `DB_FILE` - путь к SQLite базе.
-- `JWT_SECRET` - секрет подписи JWT.
-- `ADMIN_USERNAME` / `ADMIN_PASSWORD` - админская учетная запись.
-- `SSL_KEY_PATH` / `SSL_CERT_PATH` - пути к ключу и сертификату, если используется Let's Encrypt или другой доверенный сертификат.
+`JWT_SECRET` и `ADMIN_PASSWORD` обязательно замените перед публикацией сервера в интернет.
 
 ### `client/.env`
 
-```env
-VITE_API_URL=https://10.21.3.86:3001
-VITE_API_HOST=10.21.3.86
+Обычно файл можно оставить без значений: клиент автоматически использует hostname, по которому он открыт, и порт API `3001`.
 
-# SSL_KEY_PATH=C:/Certbot/live/example.com/privkey.pem
-# SSL_CERT_PATH=C:/Certbot/live/example.com/fullchain.pem
-```
-
-- `VITE_API_URL` - адрес backend API.
-- `VITE_API_HOST` - IP backend-хоста для fallback-логики.
-- `SSL_KEY_PATH` / `SSL_CERT_PATH` - пути к сертификату для Vite dev server.
-
-После изменения `.env` нужно перезапустить соответствующий процесс.
-
-## HTTPS И Сертификаты
-
-В проекте есть локальные self-signed сертификаты:
-
-- `client/cert.pem`
-- `client/key.pem`
-- `server/cert.pem`
-- `server/key.pem`
-
-Из-за них браузер может показывать предупреждение безопасности. Для приватного LAN-IP `10.21.3.86` публичный Let's Encrypt сертификат получить нельзя. Let's Encrypt подходит для публичного домена или валидируемого публичного IP.
-
-Если у вас есть публичный домен или публичный IP и выпущенный сертификат, укажите:
+Если API расположен отдельно:
 
 ```env
-SSL_KEY_PATH=C:/Certbot/live/example.com/privkey.pem
-SSL_CERT_PATH=C:/Certbot/live/example.com/fullchain.pem
+VITE_API_URL=https://api.example.com
+# или
+VITE_API_HOST=10.21.3.44
+VITE_API_PORT=3001
 ```
 
-Для локальной сети без предупреждения браузера используйте локальный доверенный CA, например `mkcert`, и установите корневой сертификат на все устройства.
+После изменения клиентского `.env` выполните `npm run build` заново.
 
-## Основной Функционал
+## HTTPS и сертификаты
 
-- Авторизация и регистрация через JWT.
-- Автоматическое создание администратора.
-- Текстовые каналы и сообщения.
-- Сортировка сообщений по `created_at`.
-- Группировка сообщений по дням: `Сегодня`, `Вчера`, дата пользователя.
-- Отображение времени и полной даты отправки сообщения.
-- Голосовые каналы через WebRTC и Socket.IO signaling.
-- Список участников голосового канала.
-- Реальное включение/отключение микрофона.
-- Синхронизация статуса микрофона в интерфейсе и списке участников.
-- Пользовательские аватары.
-- Статусы пользователей: `online`, `offline`.
-- Админское удаление пользователей.
-- Права удаления каналов по владельцу.
+Для локальной разработки можно использовать self-signed сертификаты в каталогах `client` и `server`. Браузер покажет предупреждение, пока сертификат или выпускающий CA не добавлен в доверенные.
 
-## Аватары
+Для рабочего домена задайте `SSL_KEY_PATH` и `SSL_CERT_PATH` в обоих `.env`. Приватные LAN-адреса вида `10.x.x.x` не могут получить публичный сертификат Let's Encrypt; для них используйте локальный доверенный CA, например `mkcert`.
 
-Аватары загружаются через:
+## Администратор
 
-```http
-POST /users/me/avatar
+При старте backend создаёт или обновляет администратора из переменных:
+
+```env
+ADMIN_USERNAME=Admin
+ADMIN_PASSWORD=your-strong-password
 ```
 
-Файлы сохраняются в:
+Администратор может удалять обычных пользователей и любые каналы. Обычный пользователь может удалить только созданный им канал и не может удалить канал `main`.
 
-```text
-server/uploads/avatars
-```
+## Данные приложения
 
-Ограничения:
+- SQLite: `server/db/data.sqlite`.
+- Аватары: `server/uploads/avatars`.
+- Максимальный размер аватара: 2 МБ.
+- Форматы: JPG, PNG и WEBP; сохранение выполняется в WEBP 128×128.
 
-- максимум `2 МБ`;
-- форматы `JPG`, `PNG`, `WEBP`;
-- изображение приводится к `128x128`;
-- сохраняется обработанная `.webp` версия;
-- старый аватар пользователя удаляется при повторной загрузке;
-- реальные загруженные файлы игнорируются Git, в репозитории хранится только `.gitkeep`.
+Создавайте резервные копии базы и каталога аватаров отдельно от Git.
 
-## Форматы Данных
+## Основные API-маршруты
 
-Пользователь:
+- `GET /health` — проверка backend.
+- `POST /auth/register` — регистрация.
+- `POST /auth/login` — вход.
+- `GET|POST /channels` — список и создание каналов.
+- `DELETE /channels/:id` — удаление канала.
+- `GET /messages` — сообщения.
+- `POST /messages/:channelId` — отправка сообщения.
+- `GET /users` — пользователи.
+- `GET /users/me` — текущий пользователь.
+- `PATCH /users/me/presence` — статус и микрофон.
+- `POST /users/me/avatar` — загрузка аватара.
 
-```js
-{
-  id,
-  username,
-  avatar_url,
-  status: "online" | "offline",
-  mic_muted: boolean,
-  is_admin: boolean,
-  last_seen,
-  created_at
-}
-```
-
-Канал:
-
-```js
-{
-  id,
-  name,
-  type: "text" | "voice",
-  owner_username,
-  created_at
-}
-```
-
-Сообщение:
-
-```js
-{
-  id,
-  channel_id,
-  user,
-  text,
-  time,
-  created_at
-}
-```
-
-`created_at` хранится в надежном формате даты/времени и используется для сортировки и группировки сообщений.
-
-## API
-
-Публичные маршруты:
-
-- `GET /` - проверка сервера.
-- `POST /auth/register` - регистрация.
-- `POST /auth/login` - вход.
-
-Защищенные маршруты требуют:
+Защищённые маршруты принимают JWT в заголовке:
 
 ```http
 Authorization: Bearer <token>
 ```
 
-Маршруты:
-
-- `GET /channels`
-- `POST /channels`
-- `DELETE /channels/:id`
-- `GET /messages`
-- `GET /messages/:channelId`
-- `POST /messages/:channelId`
-- `GET /users`
-- `GET /users/me`
-- `PATCH /users/me/presence`
-- `POST /users/me/avatar`
-- `DELETE /users/:username` - только админ.
-
-## Socket.IO
-
-Текстовый чат:
-
-- `message:new` - новое сообщение.
-- `user:updated` - обновление пользователя.
-- `user:deleted` - удаление пользователя.
-
-Голосовые каналы:
-
-- `join-channel`
-- `leave-channel`
-- `existing-peers`
-- `members-update`
-- `signal:offer`
-- `signal:answer`
-- `signal:ice`
-
-## Структура Проекта
+## Структура
 
 ```text
 .
-|-- client
-|   |-- src
-|   |   |-- components
-|   |   |   |-- ChannelGroup.jsx
-|   |   |   |-- ChannelList.jsx
-|   |   |   |-- ChatPanel.jsx
-|   |   |   |-- MembersPanel.jsx
-|   |   |   |-- UserAvatar.jsx
-|   |   |   |-- UserControls.jsx
-|   |   |   `-- VoiceChannelAuto.jsx
-|   |   |-- hooks
-|   |   |-- utils
-|   |   |-- api.js
-|   |   |-- App.jsx
-|   |   |-- AuthContext.jsx
-|   |   |-- LoginPage.jsx
-|   |   |-- main.jsx
-|   |   `-- index.css
-|   |-- .env
-|   |-- cert.pem
-|   |-- key.pem
-|   `-- vite.config.js
-|-- server
-|   |-- db
-|   |-- middleware
-|   |-- routes
-|   |   |-- auth.js
-|   |   |-- channels.js
-|   |   |-- messages.js
-|   |   |-- users.js
-|   |   `-- voice.js
-|   |-- uploads
-|   |   `-- avatars
-|   |-- .env
-|   |-- cert.pem
-|   |-- key.pem
-|   |-- db.js
-|   `-- index.js
-|-- .gitignore
-`-- README.md
-```
-
-## Назначение Основных Файлов
-
-- `client/src/App.jsx` - главный экран, состояние пользователей, каналов, сообщений и socket-подключений.
-- `client/src/AuthContext.jsx` - авторизация, хранение JWT и текущего пользователя.
-- `client/src/LoginPage.jsx` - страница входа и регистрации.
-- `client/src/api.js` - HTTP API wrapper.
-- `client/src/components/ChannelGroup.jsx` - список каналов, подключение к голосу, права на удаление каналов.
-- `client/src/components/ChatPanel.jsx` - сообщения, сортировка, группировка по датам.
-- `client/src/components/MembersPanel.jsx` - участники, статусы, микрофоны, удаление пользователей админом.
-- `client/src/components/UserControls.jsx` - нижняя панель пользователя, аватар, микрофон, выход.
-- `client/src/components/VoiceChannelAuto.jsx` - WebRTC голосовое подключение.
-- `server/index.js` - HTTPS Express server и Socket.IO.
-- `server/db.js` - SQLite схема, миграции и методы работы с данными.
-- `server/routes/auth.js` - вход и регистрация.
-- `server/routes/channels.js` - каналы и права удаления.
-- `server/routes/messages.js` - сообщения.
-- `server/routes/users.js` - пользователи, аватары, админское удаление.
-- `server/routes/voice.js` - Socket.IO signaling для голосовых каналов.
-
-## Полезные Команды
-
-Проверка клиента:
-
-```powershell
-cd client
-npm run lint
-npm run build
-```
-
-Проверка серверного синтаксиса:
-
-```powershell
-cd server
-C:\Users\Admin\tools\node-v22.22.3-win-x64\node.exe --check index.js
-C:\Users\Admin\tools\node-v22.22.3-win-x64\node.exe --check db.js
-```
-
-Остановка процессов на портах `3000` и `3001`:
-
-```powershell
-Get-NetTCPConnection -State Listen |
-  Where-Object { $_.LocalPort -in 3000,3001 } |
-  ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+├── client/             # React/Vite
+├── server/             # Express, Socket.IO и SQLite
+├── deploy/             # systemd unit
+├── scripts/dev.js      # совместный запуск client + server
+├── .nvmrc              # рекомендуемая версия Node.js
+├── package.json        # общие команды проекта
+└── README.md
 ```

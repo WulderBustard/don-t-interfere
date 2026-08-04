@@ -1,0 +1,17 @@
+{
+  "name": "don-t-interfere",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "setup": "npm ci --prefix server && npm ci --prefix client && npm run cert:dev",
+    "cert:dev": "node scripts/generate-cert.js",
+    "dev": "node scripts/dev.js",
+    "start": "npm start --prefix server",
+    "build": "npm run build --prefix client",
+    "lint": "npm run lint --prefix client",
+    "check": "npm run lint && npm run build && node --check server/index.js && node --check server/db.js"
+  },
+  "engines": {
+    "node": ">=22 <25"
+  }
+}

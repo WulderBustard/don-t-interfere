@@ -1,0 +1,23 @@
+[Unit]
+Description=don-t-interfere web application
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=admin
+Group=admin
+WorkingDirectory=/home/admin/projects/don-t-interfere
+Environment=NODE_ENV=production
+Environment=PATH=/home/admin/.local/bin:/usr/local/bin:/usr/bin
+ExecStart=/home/admin/.local/bin/node /home/admin/projects/don-t-interfere/server/index.js
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/admin/projects/don-t-interfere/server/db /home/admin/projects/don-t-interfere/server/uploads
+
+[Install]
+WantedBy=multi-user.target

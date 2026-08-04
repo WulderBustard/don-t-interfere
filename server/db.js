@@ -2,9 +2,11 @@ const Database = require("better-sqlite3");
 const bcrypt = require("bcrypt");
 const fs = require("fs");
 const path = require("path");
-require("dotenv").config();
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
-const DB_FILE = process.env.DB_FILE || path.join(__dirname, "db", "data.sqlite");
+const DB_FILE = process.env.DB_FILE
+  ? path.resolve(__dirname, process.env.DB_FILE)
+  : path.join(__dirname, "db", "data.sqlite");
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "Admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin123!";
 
