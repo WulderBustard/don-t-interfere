@@ -74,3 +74,18 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# Node.js dependencies and build output
+**/node_modules/
+**/dist/
+*.log
+
+# Local runtime configuration and data
+**/.env
+!**/.env.example
+server/db/*.sqlite*
+!server/db/init.sql
+client/key.pem
+client/cert.pem
+server/key.pem
+server/cert.pem

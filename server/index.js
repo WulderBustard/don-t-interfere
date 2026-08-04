@@ -6,14 +6,14 @@ const os = require("os");
 const path = require("path");
 const { Server } = require("socket.io");
 
+require("dotenv").config({ path: path.join(__dirname, ".env") });
+
 const channelsRouter = require("./routes/channels");
 const createMessagesRouter = require("./routes/messages");
 const createUsersRouter = require("./routes/users");
 const voiceModule = require("./routes/voice");
 const authRouter = require("./routes/auth");
 const authMiddleware = require("./middleware/authMiddleware");
-
-require("dotenv").config();
 
 function getLanHost() {
   if (process.env.HOST) return process.env.HOST;
@@ -48,6 +48,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const HOST = getLanHost();
 const ALLOWED_HOSTS = new Set([HOST, `${HOST}:${PORT}`]);
+const CLIENT_DIST_PATH = path.resolve(__dirname, "../client/dist");
 
 app.use((req, res, next) => {
   const requestHost = String(req.headers.host || "").toLowerCase();
@@ -63,7 +64,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("/auth", authRouter);
 app.use("/channels", authMiddleware, channelsRouter);
-app.get("/", (req, res) => res.send("OK"));
+app.get("/health", (req, res) => res.send("OK"));
 
 const server = https.createServer(loadHttpsOptions(), app);
 
@@ -78,6 +79,18 @@ const io = new Server(server, {
 voiceModule(io);
 app.use("/users", authMiddleware, createUsersRouter(io));
 app.use("/messages", authMiddleware, createMessagesRouter(io));
+
+if (fs.existsSync(path.join(CLIENT_DIST_PATH, "index.html"))) {
+  app.use(express.static(CLIENT_DIST_PATH));
+  app.get("*", (req, res, next) => {
+    if (!req.accepts("html")) return next();
+    return res.sendFile(path.join(CLIENT_DIST_PATH, "index.html"));
+  });
+} else {
+  app.get("/", (req, res) => {
+    res.status(503).send("Client is not built. Run: npm run build");
+  });
+}
 
 server.listen(PORT, HOST, () => {
   console.log(`HTTPS сервер запущен на https://${HOST}:${PORT}`);

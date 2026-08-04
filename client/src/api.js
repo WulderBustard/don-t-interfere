@@ -1,20 +1,21 @@
 function getDefaultApiBase() {
-  const fallbackHost = import.meta.env.VITE_API_HOST || "10.21.3.86";
+  const configuredHost = import.meta.env.VITE_API_HOST?.trim();
+  const apiPort = import.meta.env.VITE_API_PORT?.trim() || "3001";
 
-  if (typeof window === "undefined") return `https://${fallbackHost}:3001`;
+  if (typeof window === "undefined") {
+    return `https://${configuredHost || "127.0.0.1"}:${apiPort}`;
+  }
 
   const protocol = window.location.protocol || "https:";
-  const hostname = window.location.hostname || "localhost";
-  const isIpAddress = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
-  const apiHost = isIpAddress ? hostname : fallbackHost;
+  const apiHost = configuredHost || window.location.hostname || "127.0.0.1";
 
-  return `${protocol}//${apiHost}:3001`;
+  return `${protocol}//${apiHost}:${apiPort}`;
 }
 
-export const API_BASE = (
-  import.meta.env.VITE_API_URL?.replace("localhost", "10.21.3.86") ||
-  getDefaultApiBase()
-).replace(/\/$/, "");
+export const API_BASE = (import.meta.env.VITE_API_URL?.trim() || getDefaultApiBase()).replace(
+  /\/$/,
+  ""
+);
 
 function authHeaders() {
   const token = localStorage.getItem("token");

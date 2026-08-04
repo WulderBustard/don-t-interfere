@@ -1,10 +1,8 @@
 import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 
 export default function LoginPage() {
   const { login, register } = useContext(AuthContext);
-  const navigate = useNavigate();
   const [isRegister, setIsRegister] = useState(false);
   const [form, setForm] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
@@ -14,11 +12,11 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const ok = isRegister
-        ? await register(form.username, form.password)
-        : await login(form.username, form.password);
-
-      if (ok) navigate("/");
+      if (isRegister) {
+        await register(form.username, form.password);
+      } else {
+        await login(form.username, form.password);
+      }
     } catch (err) {
       setError(err.message);
     }
