@@ -22,7 +22,16 @@ sudo pacman -S --needed base-devel python-pip
 Debian/Ubuntu:
 
 ```bash
-sudo apt install build-essential python3 python3-pip
+sudo apt install -y \
+  build-essential \
+  gcc \
+  g++ \
+  make \
+  pkg-config \
+  python3 \
+  python3-pip \
+  python3-venv \
+  openssl
 ```
 
 ## Быстрый запуск
